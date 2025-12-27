@@ -28,50 +28,52 @@ function Signup({ setUser }) {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>GearGuard</h1>
-        <h2>Smart Maintenance Planner</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Enter your name"
-            />
-          </div>
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Enter your email"
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Create a password"
-              minLength={6}
-            />
-          </div>
-          {error && <div className="error-message">{error}</div>}
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Creating account...' : 'Sign Up'}
-          </button>
-        </form>
-        <p className="auth-link">
-          Already have an account? <a href="/login">Login</a>
-        </p>
+    <div className="auth-page">
+      <div className="auth-container">
+        <div className="auth-card">
+          <h1>GearGuard</h1>
+          <h2>Smart Maintenance Planner</h2>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter your name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="Enter your email"
+              />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Create a password"
+                minLength={6}
+              />
+            </div>
+            {error && <div className="error-message">{error}</div>}
+            <button type="submit" disabled={loading} className="btn-primary">
+              {loading ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </form>
+          <p className="auth-link">
+            Already have an account? <a href="/login">Login</a>
+          </p>
+        </div>
       </div>
     </div>
   );
