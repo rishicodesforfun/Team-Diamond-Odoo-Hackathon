@@ -15,8 +15,8 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const signup = async (email, password, name) => {
-  const response = await api.post('/auth/signup', { email, password, name });
+export const signup = async (email, password, name, employeeId) => {
+  const response = await api.post('/auth/signup', { email, password, name, employeeId });
   if (response.data.token) {
     localStorage.setItem('token', response.data.token);
   }

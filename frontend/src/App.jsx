@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import LandingPage from './LandingPage';
 import Login from './auth/Login';
 import Signup from './auth/Signup';
 import Dashboard from './Dashboard';
@@ -17,14 +18,28 @@ const MOCK_USER = {
 };
 
 function App() {
-  const [user, setUser] = useState(MOCK_USER); // Auto-set mock user
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Bypass authentication - always use mock user
+  // Check for existing user session or use mock user for development
   useEffect(() => {
-    setUser(MOCK_USER);
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    // Uncomment below to auto-set mock user for development
+    // setUser(MOCK_USER);
     setLoading(false);
   }, []);
+
+  // Save user to localStorage when it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
@@ -32,6 +47,10 @@ function App() {
 
   return (
     <Routes>
+      <Route
+        path="/"
+        element={user ? <Navigate to="/dashboard" /> : <LandingPage setUser={setUser} />}
+      />
       <Route
         path="/login"
         element={<Login setUser={setUser} />}
@@ -42,29 +61,28 @@ function App() {
       />
       <Route
         path="/dashboard"
-        element={<Dashboard user={user} />}
+        element={user ? <Dashboard user={user} /> : <Navigate to="/" />}
       />
       <Route
         path="/equipment"
-        element={<EquipmentList />}
+        element={user ? <EquipmentList /> : <Navigate to="/" />}
       />
       <Route
         path="/equipment/:id"
-        element={<EquipmentDetail />}
+        element={user ? <EquipmentDetail /> : <Navigate to="/" />}
       />
       <Route
         path="/teams"
-        element={<TeamsList />}
+        element={user ? <TeamsList /> : <Navigate to="/" />}
       />
       <Route
         path="/requests"
-        element={<RequestsKanban />}
+        element={user ? <RequestsKanban /> : <Navigate to="/" />}
       />
       <Route
         path="/calendar"
-        element={<CalendarView />}
+        element={user ? <CalendarView /> : <Navigate to="/" />}
       />
-      <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
 }
