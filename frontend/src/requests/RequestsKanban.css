@@ -275,6 +275,12 @@
   border-color: #667eea;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 .modal-actions {
   display: flex;
   gap: 1rem;

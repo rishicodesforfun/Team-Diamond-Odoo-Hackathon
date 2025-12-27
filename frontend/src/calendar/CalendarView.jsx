@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getCalendarEvents, createRequest, updateRequest } from '../api/requests';
 import { getEquipment, getEquipmentAutofill } from '../api/equipment';
@@ -7,7 +7,6 @@ import { getTeams } from '../api/teams';
 import api from '../api/api';
 import './CalendarView.css';
 
-// Mock user fallback
 const MOCK_USER = {
   id: 1,
   name: 'Demo User',
@@ -19,10 +18,10 @@ function CalendarView() {
   const [events, setEvents] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [formData, setFormData] = useState({
     equipment_id: '',
@@ -43,81 +42,93 @@ function CalendarView() {
     start_time: '09:00',
     duration_hours: 1.0
   });
-  const [draggedEventId, setDraggedEventId] = useState(null);
 
   useEffect(() => {
-    // Bypass auth - use mock user
     setUser(MOCK_USER);
     loadData();
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
-  }, [currentWeek]);
+  }, [currentMonth]);
 
   const loadData = async () => {
     try {
-      const weekStart = getWeekStart(currentWeek);
-      const weekEnd = getWeekEnd(currentWeek);
-      
-      console.log('Loading calendar data for:', weekStart, 'to', weekEnd);
+      const monthStart = getMonthStart(currentMonth);
+      const monthEnd = getMonthEnd(currentMonth);
       
       const [eventsData, equipmentData, teamsData] = await Promise.all([
-        getCalendarEvents(weekStart, weekEnd),
+        getCalendarEvents(monthStart, monthEnd),
         getEquipment(),
         getTeams()
       ]);
-      
-      console.log('Events response:', eventsData);
-      console.log('Events data:', eventsData.data);
       
       setEvents(eventsData.data || []);
       setEquipment(equipmentData.data || []);
       setTeams(teamsData.data || []);
     } catch (err) {
       console.error('Failed to load data:', err);
-      console.error('Error details:', err.response?.data);
     }
   };
 
-  const getWeekStart = (date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    const weekStart = new Date(d.setDate(diff));
-    return formatDate(weekStart);
+  const getMonthStart = (date) => {
+    const d = new Date(date.getFullYear(), date.getMonth(), 1);
+    return formatDate(d);
   };
 
-  const getWeekEnd = (date) => {
-    const weekStart = new Date(getWeekStart(date));
-    weekStart.setDate(weekStart.getDate() + 6);
-    return formatDate(weekStart);
+  const getMonthEnd = (date) => {
+    const d = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return formatDate(d);
   };
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
   };
 
-  const getWeekDays = () => {
-    const start = new Date(getWeekStart(currentWeek));
+  const getMonthDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPadding = firstDay.getDay();
     const days = [];
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(start);
-      day.setDate(start.getDate() + i);
-      days.push(day);
+
+    // Add previous month padding
+    for (let i = 0; i < startPadding; i++) {
+      const d = new Date(year, month, -startPadding + i + 1);
+      days.push({ date: d, isCurrentMonth: false });
     }
+
+    // Add current month days
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+    }
+
+    // Add next month padding
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+    }
+
     return days;
   };
 
-  const getHours = () => {
-    return Array.from({ length: 24 }, (_, i) => i);
+  const getEventsForDate = (date) => {
+    const dateStr = formatDate(date);
+    return events.filter(event => {
+      if (!event.date) return false;
+      const eventDate = event.date.split('T')[0];
+      return eventDate === dateStr;
+    });
   };
 
-  const handleSlotClick = (day, hour) => {
-    const date = new Date(day);
-    date.setHours(hour, 0, 0, 0);
-    setSelectedSlot({ day: formatDate(day), hour });
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleTimeSlotClick = (hour) => {
+    if (!selectedDate) return;
     setFormData(prev => ({
       ...prev,
-      scheduled_date: formatDate(day),
+      scheduled_date: formatDate(selectedDate),
       start_time: `${hour.toString().padStart(2, '0')}:00`
     }));
     setShowModal(true);
@@ -126,7 +137,6 @@ function CalendarView() {
   const handleEquipmentChange = async (equipmentId) => {
     setFormData({ ...formData, equipment_id: equipmentId });
     
-    // Auto-fill logic: Get default team and category for equipment
     if (equipmentId) {
       try {
         const autofillData = await getEquipmentAutofill(equipmentId);
@@ -139,7 +149,6 @@ function CalendarView() {
         }
       } catch (err) {
         console.error('Failed to load autofill data:', err);
-        // Continue without autofill if it fails
       }
     }
   };
@@ -164,8 +173,7 @@ function CalendarView() {
     }
   };
 
-  const handleEventClick = (e, event) => {
-    e.stopPropagation();
+  const handleEventClick = (event) => {
     setSelectedEvent(event);
     setEditFormData({
       equipment_id: event.equipment_id || '',
@@ -173,7 +181,7 @@ function CalendarView() {
       type: event.type || 'preventive',
       title: event.title || '',
       description: event.description || '',
-      scheduled_date: event.date || '',
+      scheduled_date: event.date?.split('T')[0] || '',
       start_time: event.startTime || '09:00',
       duration_hours: event.durationHours || 1.0
     });
@@ -206,451 +214,327 @@ function CalendarView() {
     }
   };
 
-  const handleDragStart = (e, event) => {
-    e.stopPropagation();
-    setDraggedEventId(event.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e, day, hour) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!draggedEventId) return;
-
-    const draggedEvent = events.find(ev => ev.id === draggedEventId);
-    if (!draggedEvent) return;
-
-    const newDate = formatDate(day);
-    const newStartTime = `${hour.toString().padStart(2, '0')}:00`;
-
-    // Only update if the date or time has changed
-    if (draggedEvent.date === newDate && draggedEvent.startTime === newStartTime) {
-      setDraggedEventId(null);
-      return;
-    }
-
-    try {
-      await updateRequest(draggedEventId, {
-        scheduled_date: newDate,
-        start_time: newStartTime
-      });
-      setDraggedEventId(null);
-      loadData();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to reschedule request');
-      setDraggedEventId(null);
-    }
-  };
-
-  const getEventsForSlot = (day, hour) => {
-    const dayStr = formatDate(day);
-    return events.filter(event => {
-      if (event.date !== dayStr) return false;
-      const eventHour = parseInt(event.startTime?.split(':')[0] || 0);
-      const duration = parseFloat(event.durationHours || 1);
-      return eventHour <= hour && (eventHour + duration) > hour;
-    });
-  };
-
-  const getEventsForDay = (day) => {
-    const dayStr = formatDate(day);
-    return events.filter(event => event.date === dayStr);
-  };
-
-  const eventsOverlap = (event1, event2) => {
-    const start1 = parseInt(event1.startTime?.split(':')[0] || 0);
-    const end1 = start1 + parseFloat(event1.durationHours || 1);
-    const start2 = parseInt(event2.startTime?.split(':')[0] || 0);
-    const end2 = start2 + parseFloat(event2.durationHours || 1);
-    
-    return start1 < end2 && start2 < end1;
-  };
-
-  const calculateEventPositions = (day) => {
-    const dayEvents = getEventsForDay(day);
-    const positions = {};
-    
-    // Group overlapping events into clusters
-    const clusters = [];
-    dayEvents.forEach(event => {
-      let addedToCluster = false;
-      
-      for (let cluster of clusters) {
-        // Check if this event overlaps with any event in the cluster
-        if (cluster.some(clusterEvent => eventsOverlap(event, clusterEvent))) {
-          cluster.push(event);
-          addedToCluster = true;
-          break;
-        }
-      }
-      
-      if (!addedToCluster) {
-        clusters.push([event]);
-      }
-    });
-    
-    // Calculate positions for each cluster
-    clusters.forEach(cluster => {
-      const clusterSize = cluster.length;
-      cluster.forEach((event, index) => {
-        positions[event.id] = {
-          width: `${100 / clusterSize}%`,
-          left: `${(100 / clusterSize) * index}%`
-        };
-      });
-    });
-    
-    return positions;
-  };
-
-  const getEventStyle = (event, day) => {
-    const startHour = parseInt(event.startTime?.split(':')[0] || 0);
-    const duration = parseFloat(event.durationHours || 1);
-    const top = (startHour % 24) * 60;
-    const height = duration * 60;
-    
-    const statusColors = {
-      new: '#3498db',
-      in_progress: '#f39c12',
-      repaired: '#27ae60',
-      scrap: '#95a5a6'
-    };
-
-    const positions = calculateEventPositions(day);
-    const position = positions[event.id] || { width: '100%', left: '0%' };
-
-    return {
-      top: `${top}px`,
-      height: `${height}px`,
-      backgroundColor: statusColors[event.status] || '#3498db',
-      position: 'absolute',
-      width: position.width,
-      left: position.left,
-      borderRadius: '4px',
-      padding: '4px 8px',
-      color: 'white',
-      fontSize: '0.85rem',
-      overflow: 'hidden',
-      cursor: 'move',
-      zIndex: 10,
-      opacity: draggedEventId === event.id ? 0.5 : 1,
-      border: '1px solid rgba(255, 255, 255, 0.3)'
-    };
-  };
-
-  const navigateWeek = (direction) => {
-    const newDate = new Date(currentWeek);
-    newDate.setDate(newDate.getDate() + (direction * 7));
-    setCurrentWeek(newDate);
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCurrentMonth(newDate);
+    setSelectedDate(null);
   };
 
   const goToToday = () => {
-    setCurrentWeek(new Date());
+    setCurrentMonth(new Date());
+    setSelectedDate(new Date());
   };
 
-  const weekDays = getWeekDays();
-  const hours = getHours();
-  const now = new Date();
+  const monthDays = getMonthDays();
+  const today = new Date();
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
     <Layout user={user}>
       <div className="calendar-view">
-      <div className="calendar-header">
-        <div className="calendar-nav">
-          <button onClick={() => navigateWeek(-1)}>← Previous</button>
-          <button onClick={goToToday}>Today</button>
-          <button onClick={() => navigateWeek(1)}>Next →</button>
+        <div className="calendar-header">
+          <div className="calendar-nav">
+            <button onClick={() => navigateMonth(-1)}>← Previous</button>
+            <button onClick={goToToday}>Today</button>
+            <button onClick={() => navigateMonth(1)}>Next →</button>
+          </div>
+          <h2>
+            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h2>
+          <Link to="/requests" className="btn-secondary">View Kanban</Link>
         </div>
-        <h2>
-          {weekDays[0].toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - 
-          {weekDays[6].toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-        </h2>
-        <Link to="/requests" className="btn-secondary">View Kanban</Link>
-      </div>
 
-      <div className="calendar-container">
-        <div className="calendar-time-column">
-          {hours.map(hour => (
-            <div key={hour} className="time-slot">
-              {hour.toString().padStart(2, '0')}:00
+        <div className="calendar-layout">
+          {/* Month Grid */}
+          <div className="month-grid">
+            <div className="weekday-headers">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="weekday-header">{day}</div>
+              ))}
             </div>
-          ))}
-        </div>
+            <div className="month-days">
+              {monthDays.map((day, index) => {
+                const dayEvents = getEventsForDate(day.date);
+                const isToday = formatDate(day.date) === formatDate(today);
+                const isSelected = selectedDate && formatDate(day.date) === formatDate(selectedDate);
+                
+                return (
+                  <div
+                    key={index}
+                    className={`month-day ${!day.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleDateClick(day.date)}
+                  >
+                    <div className="day-number">{day.date.getDate()}</div>
+                    {dayEvents.length > 0 && (
+                      <div className="event-indicators">
+                        {dayEvents.slice(0, 3).map(event => (
+                          <div
+                            key={event.id}
+                            className={`event-dot ${event.status}`}
+                            title={event.title}
+                          />
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <span className="more-events">+{dayEvents.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-        <div className="calendar-grid">
-          {weekDays.map((day, dayIndex) => (
-            <div key={dayIndex} className="calendar-day">
-              <div className="day-header">
-                <div className="day-name">
-                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                </div>
-                <div className="day-number">
-                  {day.getDate()}
-                </div>
+          {/* Day Detail Panel */}
+          {selectedDate && (
+            <div className="day-detail">
+              <div className="day-detail-header">
+                <h3>{selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                <button onClick={() => setSelectedDate(null)} className="close-btn">×</button>
               </div>
-              <div className="day-slots">
-                {hours.map(hour => {
-                  const slotEvents = getEventsForSlot(day, hour);
-                  const isCurrentTime = 
-                    formatDate(day) === formatDate(now) && 
-                    hour === now.getHours();
-                  
-                  return (
-                    <div
-                      key={hour}
-                      className={`time-slot ${isCurrentTime ? 'current-time' : ''}`}
-                      onClick={() => handleSlotClick(day, hour)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, day, hour)}
-                    >
-                      {slotEvents.map(event => (
-                        <div
-                          key={event.id}
-                          style={getEventStyle(event, day)}
-                          title={`${event.title} - ${event.equipment_name || ''}`}
-                          onClick={(e) => handleEventClick(e, event)}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, event)}
-                        >
-                          <div className="event-title">{event.title}</div>
-                          <div className="event-time">
-                            {event.startTime} ({event.durationHours}h)
-                          </div>
+              <div className="day-detail-content">
+                {getEventsForDate(selectedDate).length === 0 ? (
+                  <div className="no-events">
+                    <p>No events scheduled</p>
+                    <p style={{ fontSize: '0.9rem', color: '#666' }}>Click a time slot to create one</p>
+                  </div>
+                ) : (
+                  <div className="events-list">
+                    {getEventsForDate(selectedDate).map(event => (
+                      <div
+                        key={event.id}
+                        className={`event-item ${event.status}`}
+                        onClick={() => handleEventClick(event)}
+                      >
+                        <div className="event-time">
+                          {event.startTime} ({event.durationHours}h)
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
+                        <div className="event-title">{event.title}</div>
+                        <div className="event-equipment">{event.equipment_name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="time-slots">
+                  <h4>Add New Event</h4>
+                  <div className="time-slot-grid">
+                    {hours.map(hour => (
+                      <button
+                        key={hour}
+                        className="time-slot-btn"
+                        onClick={() => handleTimeSlotClick(hour)}
+                      >
+                        {hour.toString().padStart(2, '0')}:00
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
+          )}
         </div>
-      </div>
 
-      {events.length === 0 && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '2rem', 
-          color: '#666',
-          background: 'white',
-          borderRadius: '8px',
-          marginTop: '1rem'
-        }}>
-          <p>No maintenance requests scheduled for this week.</p>
-          <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            Click on any time slot to create a new request.
-          </p>
-        </div>
-      )}
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Create Maintenance Request</h3>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Equipment *</label>
-                <select
-                  value={formData.equipment_id}
-                  onChange={(e) => handleEquipmentChange(e.target.value)}
-                  required
-                >
-                  <option value="">Select equipment</option>
-                  {equipment.map(eq => (
-                    <option key={eq.id} value={eq.id}>{eq.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Team</label>
-                <select
-                  value={formData.team_id}
-                  onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
-                >
-                  <option value="">Select team</option>
-                  {teams.map(team => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Type *</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
-                >
-                  <option value="preventive">Preventive</option>
-                  <option value="corrective">Corrective</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Title *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  placeholder="e.g., Motor Repair"
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                  placeholder="Additional details..."
-                />
-              </div>
-              <div className="form-row">
+        {showModal && (
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>Create Maintenance Request</h3>
+              <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                  <label>Start Time</label>
+                  <label>Equipment *</label>
+                  <select
+                    value={formData.equipment_id}
+                    onChange={(e) => handleEquipmentChange(e.target.value)}
+                    required
+                  >
+                    <option value="">Select equipment</option>
+                    {equipment.map(eq => (
+                      <option key={eq.id} value={eq.id}>{eq.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Team</label>
+                  <select
+                    value={formData.team_id}
+                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+                  >
+                    <option value="">Select team</option>
+                    {teams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Type *</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    required
+                  >
+                    <option value="preventive">Preventive</option>
+                    <option value="corrective">Corrective</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Title *</label>
                   <input
-                    type="time"
-                    value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                    placeholder="e.g., Motor Repair"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Duration (hours)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    value={formData.duration_hours}
-                    onChange={(e) => setFormData({ ...formData, duration_hours: parseFloat(e.target.value) })}
+                  <label>Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                    placeholder="Additional details..."
                   />
                 </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Create Request
-                </button>
-              </div>
-            </form>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Start Time</label>
+                    <input
+                      type="time"
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Duration (hours)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={formData.duration_hours}
+                      onChange={(e) => setFormData({ ...formData, duration_hours: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Create Request
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showEditModal && selectedEvent && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Edit Maintenance Request</h3>
-            <form onSubmit={handleEditSubmit}>
-              <div className="form-group">
-                <label>Equipment *</label>
-                <select
-                  value={editFormData.equipment_id}
-                  onChange={(e) => setEditFormData({ ...editFormData, equipment_id: e.target.value })}
-                  required
-                >
-                  <option value="">Select equipment</option>
-                  {equipment.map(eq => (
-                    <option key={eq.id} value={eq.id}>{eq.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Team</label>
-                <select
-                  value={editFormData.team_id}
-                  onChange={(e) => setEditFormData({ ...editFormData, team_id: e.target.value })}
-                >
-                  <option value="">Select team</option>
-                  {teams.map(team => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Type *</label>
-                <select
-                  value={editFormData.type}
-                  onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
-                  required
-                >
-                  <option value="preventive">Preventive</option>
-                  <option value="corrective">Corrective</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Title *</label>
-                <input
-                  type="text"
-                  value={editFormData.title}
-                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                  required
-                  placeholder="e.g., Motor Repair"
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={editFormData.description}
-                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                  rows="3"
-                  placeholder="Additional details..."
-                />
-              </div>
-              <div className="form-group">
-                <label>Scheduled Date</label>
-                <input
-                  type="date"
-                  value={editFormData.scheduled_date}
-                  onChange={(e) => setEditFormData({ ...editFormData, scheduled_date: e.target.value })}
-                />
-              </div>
-              <div className="form-row">
+        {showEditModal && selectedEvent && (
+          <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>Edit Maintenance Request</h3>
+              <form onSubmit={handleEditSubmit}>
                 <div className="form-group">
-                  <label>Start Time</label>
+                  <label>Equipment *</label>
+                  <select
+                    value={editFormData.equipment_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, equipment_id: e.target.value })}
+                    required
+                  >
+                    <option value="">Select equipment</option>
+                    {equipment.map(eq => (
+                      <option key={eq.id} value={eq.id}>{eq.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Team</label>
+                  <select
+                    value={editFormData.team_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, team_id: e.target.value })}
+                  >
+                    <option value="">Select team</option>
+                    {teams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Type *</label>
+                  <select
+                    value={editFormData.type}
+                    onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                    required
+                  >
+                    <option value="preventive">Preventive</option>
+                    <option value="corrective">Corrective</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Title *</label>
                   <input
-                    type="time"
-                    value={editFormData.start_time}
-                    onChange={(e) => setEditFormData({ ...editFormData, start_time: e.target.value })}
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    required
+                    placeholder="e.g., Motor Repair"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Duration (hours)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    value={editFormData.duration_hours}
-                    onChange={(e) => setEditFormData({ ...editFormData, duration_hours: parseFloat(e.target.value) })}
+                  <label>Description</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    rows="3"
+                    placeholder="Additional details..."
                   />
                 </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" onClick={handleDelete} className="btn-delete">
-                  Delete
-                </button>
-                <div style={{ flex: 1 }}></div>
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn-cancel">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Save Changes
-                </button>
-              </div>
-            </form>
+                <div className="form-group">
+                  <label>Scheduled Date</label>
+                  <input
+                    type="date"
+                    value={editFormData.scheduled_date}
+                    onChange={(e) => setEditFormData({ ...editFormData, scheduled_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Start Time</label>
+                    <input
+                      type="time"
+                      value={editFormData.start_time}
+                      onChange={(e) => setEditFormData({ ...editFormData, start_time: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Duration (hours)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={editFormData.duration_hours}
+                      onChange={(e) => setEditFormData({ ...editFormData, duration_hours: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button type="button" onClick={handleDelete} className="btn-delete">
+                    Delete
+                  </button>
+                  <div style={{ flex: 1 }}></div>
+                  <button type="button" onClick={() => setShowEditModal(false)} className="btn-cancel">
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </Layout>
   );
 }
 
 export default CalendarView;
-

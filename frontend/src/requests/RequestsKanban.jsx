@@ -33,7 +33,10 @@ function RequestsKanban() {
     team_id: '',
     type: 'corrective',
     title: '',
-    description: ''
+    description: '',
+    scheduled_date: '',
+    start_time: '09:00',
+    duration_hours: 1.0
   });
   const [draggedItem, setDraggedItem] = useState(null);
   const [filterEquipmentId, setFilterEquipmentId] = useState(null);
@@ -135,7 +138,10 @@ function RequestsKanban() {
         team_id: '',
         type: 'corrective',
         title: '',
-        description: ''
+        description: '',
+        scheduled_date: '',
+        start_time: '09:00',
+        duration_hours: 1.0
       });
       loadData();
     } catch (err) {
@@ -288,6 +294,37 @@ function RequestsKanban() {
                   placeholder="Additional details..."
                 />
               </div>
+              <div className="form-group">
+                <label>Scheduled Date (Optional)</label>
+                <input
+                  type="date"
+                  value={formData.scheduled_date || ''}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  placeholder="Select date for calendar"
+                />
+              </div>
+              {formData.scheduled_date && (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Start Time</label>
+                    <input
+                      type="time"
+                      value={formData.start_time || '09:00'}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Duration (hours)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={formData.duration_hours || 1.0}
+                      onChange={(e) => setFormData({ ...formData, duration_hours: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">
                   Cancel
