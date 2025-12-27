@@ -1,0 +1,262 @@
+.calendar-view {
+  padding: 2rem;
+}
+
+.calendar-header {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calendar-nav button {
+  padding: 0.5rem 1rem;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-nav button:hover {
+  background: #e9ecef;
+  border-color: #667eea;
+}
+
+.calendar-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1.5rem;
+  background: #667eea;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #5568d3;
+}
+
+.calendar-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  overflow-x: auto;
+}
+
+.calendar-time-column {
+  width: 80px;
+  border-right: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.time-slot {
+  height: 60px;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+  position: relative;
+}
+
+.calendar-time-column .time-slot {
+  text-align: right;
+  padding-right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.calendar-grid {
+  display: flex;
+  flex: 1;
+}
+
+.calendar-day {
+  flex: 1;
+  min-width: 150px;
+  border-right: 1px solid #eee;
+}
+
+.day-header {
+  background: #f8f9fa;
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 2px solid #eee;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.day-name {
+  font-size: 0.85rem;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.day-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.day-slots {
+  position: relative;
+}
+
+.day-slots .time-slot {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.day-slots .time-slot:hover {
+  background: #f8f9ff;
+}
+
+.time-slot.current-time {
+  background: #fff3cd;
+  border-top: 2px solid #ffc107;
+}
+
+.time-slot.current-time::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: #e74c3c;
+  z-index: 20;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h3 {
+  margin: 0 0 1.5rem 0;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 0.75rem 1.5rem;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #e9ecef;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+}
+
+.event-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-time {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+

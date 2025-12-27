@@ -1,0 +1,133 @@
+import express from 'express';
+import { pool } from '../db/connection.js';
+import { authenticateToken } from '../auth/middleware.js';
+
+const router = express.Router();
+
+// All equipment routes require authentication
+router.use(authenticateToken);
+
+// Get all equipment
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT e.*, t.name as team_name
+      FROM equipment e
+      LEFT JOIN teams t ON e.maintenance_team_id = t.id
+      ORDER BY e.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get single equipment
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT e.*, t.name as team_name
+      FROM equipment e
+      LEFT JOIN teams t ON e.maintenance_team_id = t.id
+      WHERE e.id = $1
+    `, [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create equipment
+router.post('/', async (req, res) => {
+  try {
+    const { name, category, location, maintenance_team_id } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO equipment (name, category, location, maintenance_team_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name, category || null, location || null, maintenance_team_id || null]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update equipment
+router.patch('/:id', async (req, res) => {
+  try {
+    const { name, category, location, maintenance_team_id } = req.body;
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount++}`);
+      values.push(name);
+    }
+    if (category !== undefined) {
+      updates.push(`category = $${paramCount++}`);
+      values.push(category);
+    }
+    if (location !== undefined) {
+      updates.push(`location = $${paramCount++}`);
+      values.push(location);
+    }
+    if (maintenance_team_id !== undefined) {
+      updates.push(`maintenance_team_id = $${paramCount++}`);
+      values.push(maintenance_team_id);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(req.params.id);
+    const result = await pool.query(
+      `UPDATE equipment SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete equipment
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM equipment WHERE id = $1 RETURNING id', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    res.json({ message: 'Equipment deleted successfully' });
+  } catch (error) {
+    console.error('Delete equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+export default router;
+
