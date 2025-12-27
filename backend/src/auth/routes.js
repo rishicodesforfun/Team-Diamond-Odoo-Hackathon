@@ -11,8 +11,18 @@ router.post('/signup', async (req, res) => {
   try {
     const { email, password, name, employeeId, role } = req.body;
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
+    if (!email || !password || !name || !employeeId) {
+      return res.status(400).json({ error: 'Email, password, name, and employee ID are required' });
+    }
+
+    // Validate employee ID format
+    if (!/^\d{6}$/.test(employeeId)) {
+      return res.status(400).json({ error: 'Employee ID must be exactly 6 digits' });
+    }
+
+    // Validate password strength
+    if (password.length < 8 || !/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with a letter and a number' });
     }
 
     // Check if user exists

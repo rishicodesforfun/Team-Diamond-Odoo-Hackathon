@@ -7,6 +7,7 @@ function Signup({ setUser }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,8 +17,21 @@ function Signup({ setUser }) {
     setError('');
     setLoading(true);
 
+    // Validation
+    if (!employeeId || !/^\d{6}$/.test(employeeId)) {
+      setError('Employee ID must be exactly 6 digits.');
+      setLoading(false);
+      return;
+    }
+
+    if (!password || password.length < 8 || !/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) {
+      setError('Password must be at least 8 characters with a letter and a number.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const data = await signup(email, password, name);
+      const data = await signup(email, password, name, employeeId);
       setUser(data.user);
       navigate('/dashboard');
     } catch (err) {
@@ -42,6 +56,17 @@ function Signup({ setUser }) {
                 onChange={(e) => setName(e.target.value)}
                 required
                 placeholder="Enter your name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Employee ID</label>
+              <input
+                type="text"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                required
+                placeholder="Enter your 6-digit ID"
+                maxLength={6}
               />
             </div>
             <div className="form-group">

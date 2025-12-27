@@ -131,7 +131,7 @@ function Auth({ setUser }) {
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                   required={!isLogin}
-                  placeholder="Enter your employee ID"
+                  placeholder="Enter 6-digit employee ID (e.g., 123456)"
                 />
               </div>
             )}
@@ -171,7 +171,7 @@ function Auth({ setUser }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder={isLogin ? "Enter your password" : "Create a password"}
+                placeholder={isLogin ? "Enter your password" : "Min 8 characters,1 letter & 1 number (e.g., MyPass123)"}
                 minLength={isLogin ? undefined : 6}
               />
             </div>
