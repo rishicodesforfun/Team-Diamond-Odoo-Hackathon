@@ -7,6 +7,10 @@ import equipmentRoutes from './equipment/routes.js';
 import teamsRoutes from './teams/routes.js';
 import requestsRoutes from './requests/routes.js';
 
+console.log('📝 About to import users routes...');
+import usersRoutes from './users/routes.js';
+console.log('✅ Users routes imported successfully');
+
 dotenv.config();
 
 const app = express();
@@ -26,12 +30,16 @@ app.use('/equipment', equipmentRoutes);
 app.use('/teams', teamsRoutes);
 app.use('/requests', requestsRoutes);
 
+console.log('📝 Registering /users routes...');
+app.use('/users', usersRoutes);
+console.log('✅ /users routes registered');
+
 // Initialize database
 async function initDB() {
   try {
     await pool.query('SELECT NOW()');
     console.log('✅ Database connected');
-    
+
     // Run migrations
     await runMigrations();
   } catch (error) {
@@ -44,7 +52,7 @@ async function runMigrations() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -55,7 +63,7 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Teams table
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams (
@@ -64,7 +72,7 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Equipment table
     await client.query(`
       CREATE TABLE IF NOT EXISTS equipment (
@@ -77,7 +85,7 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Add is_usable column if it doesn't exist (for existing databases)
     await client.query(`
       DO $$ 
@@ -90,7 +98,7 @@ async function runMigrations() {
         END IF;
       END $$;
     `);
-    
+
     // Requests table (CORE)
     await client.query(`
       CREATE TABLE IF NOT EXISTS requests (
@@ -109,7 +117,7 @@ async function runMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Create indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
@@ -117,21 +125,21 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_requests_equipment_id ON requests(equipment_id);
       CREATE INDEX IF NOT EXISTS idx_equipment_is_usable ON equipment(is_usable);
     `);
-    
+
     // Seed default user for mock authentication (ID = 1)
     const userCheck = await client.query('SELECT id FROM users WHERE id = 1');
     if (userCheck.rows.length === 0) {
       // Check if any users exist - if not, we'll need to set the sequence
       const anyUserCheck = await client.query('SELECT COUNT(*) as count FROM users');
       const userCount = parseInt(anyUserCheck.rows[0].count);
-      
+
       if (userCount === 0) {
         // No users exist, insert with explicit ID 1 and set sequence to 2
         await client.query(`
           INSERT INTO users (id, email, password_hash, name)
           VALUES (1, 'demo@gearguard.com', '$2a$10$dummy.hash.for.mock.auth', 'Demo User')
         `);
-        await client.query(`SELECT setval('users_id_seq', 2, false)`);
+        await client.query(`SELECT setval('users_id_seq', 3, false)`);
         console.log('✅ Created default demo user (ID: 1)');
       } else {
         // Users exist but ID 1 doesn't - try to insert with explicit ID
@@ -151,7 +159,7 @@ async function runMigrations() {
         }
       }
     }
-    
+
     await client.query('COMMIT');
     console.log('✅ Database migrations completed');
   } catch (error) {

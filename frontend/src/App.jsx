@@ -10,6 +10,7 @@ import EquipmentDetail from './equipment/EquipmentDetail';
 import TeamsList from './teams/TeamsList';
 import RequestsKanban from './requests/RequestsKanban';
 import CalendarView from './calendar/CalendarView';
+import UserManagement from './users/UserManagement';
 
 // Mock user for bypassing authentication
 const MOCK_USER = {
@@ -86,6 +87,10 @@ function App() {
       <Route
         path="/calendar"
         element={user ? <CalendarView /> : <Navigate to="/" />}
+      />
+      <Route
+        path="/users"
+        element={user?.role === 'manager' ? <UserManagement /> : <Navigate to="/" />}
       />
     </Routes>
   );

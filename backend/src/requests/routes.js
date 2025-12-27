@@ -16,15 +16,23 @@ router.get('/', async (req, res) => {
              e.name as equipment_name, 
              e.category as equipment_category,
              t.name as team_name,
-             u.name as user_name
+             u.name as user_name,
+             tech.name as assigned_technician_name
       FROM requests r
       LEFT JOIN equipment e ON r.equipment_id = e.id
       LEFT JOIN teams t ON r.team_id = t.id
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users tech ON r.assigned_technician_id = tech.id
       WHERE 1=1
     `;
     const params = [];
     let paramCount = 1;
+
+    // RBAC: Technicians can only see requests for their team
+    if (req.user.role === 'technician' && req.user.team_id) {
+      query += ` AND r.team_id = $${paramCount++}`;
+      params.push(req.user.team_id);
+    }
 
     if (status) {
       query += ` AND r.status = $${paramCount++}`;
@@ -417,6 +425,76 @@ router.get('/stats/summary', async (req, res) => {
     res.json(stats.rows[0]);
   } catch (error) {
     console.error('Get stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Assign technician to request (technicians and managers)
+router.patch('/:id/assign-technician', requireRole(['technician', 'manager']), async (req, res) => {
+  try {
+    const { technician_id } = req.body;
+    
+    // Technicians can only assign themselves
+    if (req.user.role === 'technician' && technician_id !== req.user.id) {
+      return res.status(403).json({ error: 'Technicians can only assign themselves' });
+    }
+    
+    const result = await pool.query(
+      `UPDATE requests 
+       SET assigned_technician_id = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 
+       RETURNING *`,
+      [technician_id || null, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Assign technician error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Pick up request (technicians only)
+router.patch('/:id/pickup', requireRole('technician'), async (req, res) => {
+  try {
+    // Get the request first to validate team
+    const requestCheck = await pool.query(
+      'SELECT team_id FROM requests WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (requestCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const request = requestCheck.rows[0];
+
+    // Validate: Request must belong to technician's team
+    if (request.team_id !== req.user.team_id) {
+      return res.status(403).json({ 
+        error: 'Forbidden', 
+        message: 'You can only pick up requests assigned to your team' 
+      });
+    }
+
+    // Update request: assign technician and change status to in_progress
+    const result = await pool.query(
+      `UPDATE requests 
+       SET assigned_technician_id = $1, 
+           status = 'in_progress',
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 
+       RETURNING *`,
+      [req.user.id, req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Pick up request error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

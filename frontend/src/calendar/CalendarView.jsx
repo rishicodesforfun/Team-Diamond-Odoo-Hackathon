@@ -171,7 +171,13 @@ function CalendarView() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createRequest(formData);
+      // For technicians, use their team_id if they have one
+      const requestData = { ...formData };
+      if (user?.role === 'technician' && user?.team_id) {
+        requestData.team_id = user.team_id;
+      }
+      
+      await createRequest(requestData);
       setShowModal(false);
       setFormData({
         equipment_id: '',

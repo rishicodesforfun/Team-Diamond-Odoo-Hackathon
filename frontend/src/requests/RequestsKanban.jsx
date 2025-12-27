@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { getRequests, updateRequestStatus, createRequest } from '../api/requests';
 import { getEquipment, getEquipmentAutofill } from '../api/equipment';
 import { getTeams } from '../api/teams';
+import api from '../api/api';
 import './RequestsKanban.css';
 
 const COLUMNS = [
@@ -83,6 +84,15 @@ function RequestsKanban() {
     }
   };
 
+  const handlePickUp = async (requestId) => {
+    try {
+      await api.patch(`/requests/${requestId}/pickup`);
+      loadData(); // Refresh the board
+    } catch (err) {
+      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to pick up request');
+    }
+  };
+
   const handleDragStart = (e, request) => {
     // Employees cannot drag cards (read-only)
     if (user?.role === 'employee') {
@@ -142,7 +152,13 @@ function RequestsKanban() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createRequest(formData);
+      // For technicians, use their team_id if they have one
+      const requestData = { ...formData };
+      if (user?.role === 'technician' && user?.team_id) {
+        requestData.team_id = user.team_id;
+      }
+      
+      await createRequest(requestData);
       setShowModal(false);
       setFormData({
         equipment_id: '',
@@ -174,6 +190,20 @@ function RequestsKanban() {
       <div className="kanban-header">
         <div>
           <h1>Maintenance Requests</h1>
+          {/* Team Banner for Technicians */}
+          {user?.role === 'technician' && (
+            <div className={`team-banner ${!user.team_id ? 'warning' : ''}`}>
+              {user.team_id ? (
+                <>
+                  🛠️ Team: {teams.find(t => t.id === user.team_id)?.name || 'Unknown Team'}
+                </>
+              ) : (
+                <>
+                  ⚠️ You are not assigned to a team. Contact your manager.
+                </>
+              )}
+            </div>
+          )}
           {filterEquipmentId && (
             <div className="filter-indicator">
               <span>Filtered by Equipment ID: {filterEquipmentId}</span>
@@ -183,8 +213,8 @@ function RequestsKanban() {
         </div>
         <div className="kanban-actions">
           <Link to="/calendar" className="btn-secondary">View Calendar</Link>
-          {/* Employees can only create corrective requests, Technicians cannot create preventive */}
-          {user?.role !== 'employee' || (
+          {/* Hide Create Request button for Technicians */}
+          {user?.role === 'employee' && (
             <button onClick={() => {
               setFormData({ ...formData, type: 'corrective' });
               setShowModal(true);
@@ -192,17 +222,9 @@ function RequestsKanban() {
               + Create Corrective Request
             </button>
           )}
-          {(user?.role === 'manager') && (
+          {user?.role === 'manager' && (
             <button onClick={() => setShowModal(true)} className="btn-primary">
               + Create Request
-            </button>
-          )}
-          {user?.role === 'technician' && (
-            <button onClick={() => {
-              setFormData({ ...formData, type: 'corrective' });
-              setShowModal(true);
-            }} className="btn-primary">
-              + Create Corrective Request
             </button>
           )}
         </div>
@@ -254,7 +276,37 @@ function RequestsKanban() {
                         Date: {new Date(request.scheduled_date).toLocaleDateString()}
                       </div>
                     )}
+                    {/* Show assigned technician */}
+                    {request.assigned_technician_name && (
+                      <div className="meta-item">
+                        Assigned: {request.assigned_technician_name}
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Pick Up Button for Technicians */}
+                  {user?.role === 'technician' && 
+                   column.id === 'new' && 
+                   !request.assigned_technician_id && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePickUp(request.id);
+                      }}
+                      className="btn-pickup"
+                    >
+                      Pick Up
+                    </button>
+                  )}
+                  
+                  {/* Assigned to Me Badge */}
+                  {user?.role === 'technician' && 
+                   request.assigned_technician_id === user.id && (
+                    <div className="assigned-badge">
+                      👤 Assigned to Me
+                    </div>
+                  )}
+                  
                   <div className="card-footer">
                     <small>Created: {new Date(request.created_at).toLocaleDateString()}</small>
                   </div>

@@ -42,9 +42,14 @@ function Layout({ children, user, setUser }) {
           </Link>
           {/* Teams - Only visible to Managers */}
           {user?.role === 'manager' && (
-            <Link to="/teams" className={`nav-item ${isActive('/teams') ? 'active' : ''}`}>
-              Teams
-            </Link>
+            <>
+              <Link to="/teams" className={`nav-item ${isActive('/teams') ? 'active' : ''}`}>
+                Teams
+              </Link>
+              <Link to="/users" className={`nav-item ${isActive('/users') ? 'active' : ''}`}>
+                Users
+              </Link>
+            </>
           )}
         </nav>
       </div>

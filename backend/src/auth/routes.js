@@ -27,9 +27,10 @@ router.post('/signup', async (req, res) => {
     // Create user with role defaulting to 'employee'
     const userRole = role || 'employee';
     
+    // Check if employee_id column exists, if not, don't include it
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, employee_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role',
-      [email, passwordHash, name, employeeId || null, userRole]
+      'INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role',
+      [email, passwordHash, name, userRole]
     );
 
     const user = result.rows[0];
@@ -47,7 +48,8 @@ router.post('/signup', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        team_id: user.team_id || null
       }
     });
   } catch (error) {
@@ -92,7 +94,8 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        team_id: user.team_id
       }
     });
   } catch (error) {
