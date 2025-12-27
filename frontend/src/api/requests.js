@@ -18,5 +18,13 @@ export const getCalendarEvents = (start, end) => {
   if (end) params.append('end', end);
   return api.get(`/requests/calendar?${params.toString()}`);
 };
-export const getRequestStats = () => api.get('/requests/stats/summary');
+export const getRequestStats = async () => {
+  try {
+    const response = await api.get('/requests/stats/summary');
+    return response.data; // Return the actual data, not the axios response wrapper
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    throw error;
+  }
+};
 

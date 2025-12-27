@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import LandingPage from './LandingPage';
+import Auth from './auth/Auth';
 import Login from './auth/Login';
 import Signup from './auth/Signup';
 import Dashboard from './Dashboard';
@@ -26,9 +27,10 @@ function App() {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+    } else {
+      // Auto-set mock user for development (bypasses login)
+      setUser(MOCK_USER);
     }
-    // Uncomment below to auto-set mock user for development
-    // setUser(MOCK_USER);
     setLoading(false);
   }, []);
 
@@ -49,7 +51,11 @@ function App() {
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/dashboard" /> : <LandingPage setUser={setUser} />}
+        element={user ? <Navigate to="/dashboard" /> : <LandingPage />}
+      />
+      <Route
+        path="/auth"
+        element={user ? <Navigate to="/dashboard" /> : <Auth setUser={setUser} />}
       />
       <Route
         path="/login"

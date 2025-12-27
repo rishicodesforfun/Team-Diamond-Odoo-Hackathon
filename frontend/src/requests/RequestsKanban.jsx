@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getRequests, updateRequestStatus, createRequest } from '../api/requests';
-import { getEquipment } from '../api/equipment';
+import { getEquipment, getEquipmentAutofill } from '../api/equipment';
 import { getTeams } from '../api/teams';
 import './RequestsKanban.css';
 
@@ -21,6 +21,7 @@ const MOCK_USER = {
 };
 
 function RequestsKanban() {
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState(MOCK_USER);
   const [requests, setRequests] = useState([]);
   const [equipment, setEquipment] = useState([]);
@@ -35,19 +36,30 @@ function RequestsKanban() {
     description: ''
   });
   const [draggedItem, setDraggedItem] = useState(null);
+  const [filterEquipmentId, setFilterEquipmentId] = useState(null);
 
   useEffect(() => {
     // Bypass auth - use mock user
     setUser(MOCK_USER);
+    
+    // Check for equipment filter in URL
+    const equipmentId = searchParams.get('equipment_id');
+    if (equipmentId) {
+      setFilterEquipmentId(equipmentId);
+    }
+    
     loadData();
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [searchParams]);
 
   const loadData = async () => {
     try {
+      const equipmentId = searchParams.get('equipment_id');
+      const filters = equipmentId ? { equipment_id: equipmentId } : {};
+      
       const [requestsData, equipmentData, teamsData] = await Promise.all([
-        getRequests(),
+        getRequests(filters),
         getEquipment(),
         getTeams()
       ]);
@@ -91,6 +103,28 @@ function RequestsKanban() {
     }
   };
 
+  const handleEquipmentChange = async (equipmentId) => {
+    setFormData({ ...formData, equipment_id: equipmentId });
+    
+    // Auto-fill logic: Get default team and category for equipment
+    if (equipmentId) {
+      try {
+        const autofillData = await getEquipmentAutofill(equipmentId);
+        if (autofillData.data) {
+          setFormData(prev => ({
+            ...prev,
+            equipment_id: equipmentId,
+            team_id: autofillData.data.team_id || prev.team_id,
+            category: autofillData.data.category || prev.category
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load autofill data:', err);
+        // Continue without autofill if it fails
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -121,7 +155,15 @@ function RequestsKanban() {
     <Layout user={user}>
       <div className="kanban-container">
       <div className="kanban-header">
-        <h1>Maintenance Requests</h1>
+        <div>
+          <h1>Maintenance Requests</h1>
+          {filterEquipmentId && (
+            <div className="filter-indicator">
+              <span>Filtered by Equipment ID: {filterEquipmentId}</span>
+              <Link to="/requests" className="clear-filter">Clear Filter</Link>
+            </div>
+          )}
+        </div>
         <div className="kanban-actions">
           <Link to="/calendar" className="btn-secondary">View Calendar</Link>
           <button onClick={() => setShowModal(true)} className="btn-primary">
@@ -195,7 +237,7 @@ function RequestsKanban() {
                 <label>Equipment *</label>
                 <select
                   value={formData.equipment_id}
-                  onChange={(e) => setFormData({ ...formData, equipment_id: e.target.value })}
+                  onChange={(e) => handleEquipmentChange(e.target.value)}
                   required
                 >
                   <option value="">Select equipment</option>

@@ -37,10 +37,25 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Equipment not found' });
     }
 
-    res.json(result.rows[0]);
+    // Ensure is_usable is included (defaults to true if column doesn't exist yet)
+    const equipment = result.rows[0];
+    if (equipment.is_usable === undefined || equipment.is_usable === null) {
+      equipment.is_usable = true;
+    }
+
+    res.json(equipment);
   } catch (error) {
-    console.error('Get equipment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Get equipment error:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      equipmentId: req.params.id
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -125,6 +140,55 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Equipment deleted successfully' });
   } catch (error) {
     console.error('Delete equipment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Auto-Fill Logic: Get default team and category for equipment
+router.get('/:id/autofill', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        e.maintenance_team_id as team_id,
+        e.category,
+        t.name as team_name
+      FROM equipment e
+      LEFT JOIN teams t ON e.maintenance_team_id = t.id
+      WHERE e.id = $1
+    `, [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    const equipment = result.rows[0];
+    res.json({
+      team_id: equipment.team_id,
+      category: equipment.category,
+      team_name: equipment.team_name
+    });
+  } catch (error) {
+    console.error('Get autofill error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get open requests count for equipment (for Smart Button)
+router.get('/:id/requests/count', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT COUNT(*) as open_count
+      FROM requests
+      WHERE equipment_id = $1 
+        AND status IN ('new', 'in_progress')
+    `, [req.params.id]);
+
+    res.json({ 
+      equipment_id: parseInt(req.params.id),
+      open_count: parseInt(result.rows[0].open_count)
+    });
+  } catch (error) {
+    console.error('Get requests count error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

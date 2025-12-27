@@ -14,9 +14,34 @@
 }
 
 .kanban-header h1 {
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   color: #333;
   font-size: 1.75rem;
+}
+
+.filter-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #856404;
+}
+
+.filter-indicator .clear-filter {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.filter-indicator .clear-filter:hover {
+  background: rgba(102, 126, 234, 0.1);
 }
 
 .kanban-actions {

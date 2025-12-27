@@ -73,8 +73,22 @@ async function runMigrations() {
         category VARCHAR(100),
         location VARCHAR(255),
         maintenance_team_id INTEGER REFERENCES teams(id),
+        is_usable BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    
+    // Add is_usable column if it doesn't exist (for existing databases)
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'equipment' AND column_name = 'is_usable'
+        ) THEN
+          ALTER TABLE equipment ADD COLUMN is_usable BOOLEAN DEFAULT TRUE;
+        END IF;
+      END $$;
     `);
     
     // Requests table (CORE)
@@ -101,7 +115,42 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
       CREATE INDEX IF NOT EXISTS idx_requests_scheduled_date ON requests(scheduled_date);
       CREATE INDEX IF NOT EXISTS idx_requests_equipment_id ON requests(equipment_id);
+      CREATE INDEX IF NOT EXISTS idx_equipment_is_usable ON equipment(is_usable);
     `);
+    
+    // Seed default user for mock authentication (ID = 1)
+    const userCheck = await client.query('SELECT id FROM users WHERE id = 1');
+    if (userCheck.rows.length === 0) {
+      // Check if any users exist - if not, we'll need to set the sequence
+      const anyUserCheck = await client.query('SELECT COUNT(*) as count FROM users');
+      const userCount = parseInt(anyUserCheck.rows[0].count);
+      
+      if (userCount === 0) {
+        // No users exist, set sequence to start at 1 and insert
+        await client.query(`SELECT setval('users_id_seq', 1, false)`);
+        await client.query(`
+          INSERT INTO users (id, email, password_hash, name)
+          VALUES (1, 'demo@gearguard.com', '$2a$10$dummy.hash.for.mock.auth', 'Demo User')
+        `);
+        console.log('✅ Created default demo user (ID: 1)');
+      } else {
+        // Users exist but ID 1 doesn't - try to insert with explicit ID
+        // This might fail if sequence is ahead, so we'll handle it
+        try {
+          await client.query(`
+            INSERT INTO users (id, email, password_hash, name)
+            VALUES (1, 'demo@gearguard.com', '$2a$10$dummy.hash.for.mock.auth', 'Demo User')
+          `);
+          console.log('✅ Created default demo user (ID: 1)');
+        } catch (insertError) {
+          // If insert fails, we'll use the first available user ID
+          const firstUser = await client.query('SELECT id FROM users ORDER BY id LIMIT 1');
+          if (firstUser.rows.length > 0) {
+            console.log(`⚠️  Could not create user with ID 1. Using existing user ID: ${firstUser.rows[0].id}`);
+          }
+        }
+      }
+    }
     
     await client.query('COMMIT');
     console.log('✅ Database migrations completed');

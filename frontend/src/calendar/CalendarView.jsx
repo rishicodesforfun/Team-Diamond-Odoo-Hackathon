@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getCalendarEvents, createRequest, updateRequest } from '../api/requests';
-import { getEquipment } from '../api/equipment';
+import { getEquipment, getEquipmentAutofill } from '../api/equipment';
 import { getTeams } from '../api/teams';
 import api from '../api/api';
 import './CalendarView.css';
@@ -121,6 +121,27 @@ function CalendarView() {
       start_time: `${hour.toString().padStart(2, '0')}:00`
     }));
     setShowModal(true);
+  };
+
+  const handleEquipmentChange = async (equipmentId) => {
+    setFormData({ ...formData, equipment_id: equipmentId });
+    
+    // Auto-fill logic: Get default team and category for equipment
+    if (equipmentId) {
+      try {
+        const autofillData = await getEquipmentAutofill(equipmentId);
+        if (autofillData.data) {
+          setFormData(prev => ({
+            ...prev,
+            equipment_id: equipmentId,
+            team_id: autofillData.data.team_id || prev.team_id
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load autofill data:', err);
+        // Continue without autofill if it fails
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -438,7 +459,7 @@ function CalendarView() {
                 <label>Equipment *</label>
                 <select
                   value={formData.equipment_id}
-                  onChange={(e) => setFormData({ ...formData, equipment_id: e.target.value })}
+                  onChange={(e) => handleEquipmentChange(e.target.value)}
                   required
                 >
                   <option value="">Select equipment</option>

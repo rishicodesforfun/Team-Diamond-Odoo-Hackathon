@@ -25,10 +25,21 @@ function Dashboard({ user }) {
 
   const loadStats = async () => {
     try {
-      const data = await getRequestStats();
-      setStats(data);
+      const statsData = await getRequestStats();
+      setStats(statsData);
     } catch (err) {
       console.error('Failed to load stats:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      // Set empty stats on error so UI doesn't break
+      setStats({
+        total_count: 0,
+        new_count: 0,
+        in_progress_count: 0,
+        repaired_count: 0,
+        scrap_count: 0,
+        corrective_count: 0,
+        preventive_count: 0
+      });
     } finally {
       setLoading(false);
     }
