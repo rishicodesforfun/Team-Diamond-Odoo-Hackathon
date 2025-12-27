@@ -1,231 +1,306 @@
-# GearGuard - Smart Maintenance Planner
+GearGuard – Smart Maintenance Planner
+GearGuard is a maintenance‑first asset management system designed to help organizations efficiently track equipment, manage maintenance workflows, and plan preventive operations using a unified, time‑centric interface.
 
-A maintenance-first dashboard that lets teams track assets, schedule preventive maintenance visually, handle breakdowns quickly, and see everything in one unified timeline.
+The system combines asset management, maintenance request workflows, kanban tracking, and a weekly maintenance calendar into a single, coherent platform suitable for operational teams and technical reviewers.
 
-## 🎯 MVP Features
+Overview
+GearGuard focuses on three core dimensions of maintenance operations:
 
-- ✅ **Authentication** - Signup/Login with JWT
-- ✅ **Equipment Management** - Track assets (machines, vehicles)
-- ✅ **Maintenance Requests** - Create corrective (breakdown) and preventive (scheduled) requests
-- ✅ **Weekly Calendar View** - Visual planning with hour-by-hour scheduling
-- ✅ **Kanban Board** - Drag-and-drop status management (New → In Progress → Repaired → Scrap)
-- ✅ **Dashboard** - Summary statistics and quick actions
-- ✅ **Teams** - Simple team management
+Assets – What needs to be maintained
 
-## 🏗️ Architecture
+Teams – Who is responsible for maintenance
 
-### Backend (`backend/`)
-- **Node.js + Express** - RESTful API
-- **PostgreSQL** - Single database
-- **JWT** - Authentication
-- **Folder Structure:**
-  - `auth/` - Signup, login, JWT middleware
-  - `equipment/` - Asset management
-  - `teams/` - Maintenance teams
-  - `requests/` - Core business logic (Kanban + Calendar)
-  - `db/` - Database connection
+Time – When maintenance is scheduled or performed
 
-### Frontend (`frontend/`)
-- **React + Vite** - Modern React app
-- **React Router** - Client-side routing
-- **Folder Structure:**
-  - `auth/` - Login/Signup screens
-  - `equipment/` - Asset list & detail view
-  - `teams/` - Team list
-  - `requests/` - Kanban board
-  - `calendar/` - Weekly maintenance calendar (STAR FEATURE ⭐)
-  - `api/` - All fetch wrappers
+By unifying these dimensions, GearGuard enables teams to move away from fragmented tools and spreadsheets toward a structured, visual, and reliable maintenance workflow.
 
-## 🚀 Quick Start
+MVP Features
+Authentication using JWT (Signup / Login)
 
-### Prerequisites
-- Node.js 18+ 
-- PostgreSQL 12+
-- npm or yarn
+Equipment and asset management (machines, vehicles, infrastructure)
 
-### Backend Setup
+Maintenance request handling:
 
-1. **Install dependencies:**
-```bash
+Corrective (breakdown-driven)
+
+Preventive (scheduled)
+
+Weekly maintenance calendar with hour-level scheduling
+
+Kanban board for request lifecycle management
+
+Dashboard with summary statistics and quick actions
+
+Basic maintenance team management
+
+Role-agnostic design for simplicity and rapid onboarding
+
+Architecture
+Backend (backend/)
+Node.js with Express (RESTful API)
+
+PostgreSQL (single relational database)
+
+JWT-based authentication
+
+Modular, domain-driven folder structure
+
+Backend Modules
+
+auth/ – Authentication, JWT issuance, authorization middleware
+
+equipment/ – Asset and equipment management
+
+teams/ – Maintenance team definitions
+
+requests/ – Core maintenance logic (calendar + kanban)
+
+db/ – Database connection and schema initialization
+
+Frontend (frontend/)
+React with Vite for fast development
+
+Client-side routing
+
+Modular UI aligned with backend domains
+
+Frontend Modules
+
+auth/ – Login and signup views
+
+equipment/ – Asset listing and detail views
+
+teams/ – Team overview
+
+requests/ – Kanban board
+
+calendar/ – Weekly maintenance calendar
+
+api/ – Centralized API request wrappers
+
+Quick Start
+Prerequisites
+Node.js 18 or higher
+
+PostgreSQL 12 or higher
+
+npm or yarn
+
+Backend Setup
+Install dependencies:
+
 cd backend
 npm install
-```
+Configure environment variables:
 
-2. **Set up environment variables:**
-```bash
 cp .env.example .env
-# Edit .env with your database URL and JWT secret
-```
+Create the PostgreSQL database:
 
-3. **Create PostgreSQL database:**
-```sql
 CREATE DATABASE gearguard;
-```
+Update .env:
 
-4. **Update `.env`:**
-```
 PORT=3001
 DATABASE_URL=postgresql://localhost:5432/gearguard
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_SECRET=change-this-secret-in-production
 NODE_ENV=development
-```
+Start the backend server:
 
-5. **Start the server:**
-```bash
 npm start
-# or for development with auto-reload:
+For development with auto-reload:
+
 npm run dev
-```
+The backend initializes required database tables automatically on first run.
 
-The backend will automatically create all tables on first run.
+Frontend Setup
+Install dependencies:
 
-### Frontend Setup
-
-1. **Install dependencies:**
-```bash
 cd frontend
 npm install
-```
+Start the development server:
 
-2. **Start the development server:**
-```bash
 npm run dev
-```
+The frontend will be available at:
 
-The frontend will be available at `http://localhost:3000`
+http://localhost:3000
+API Overview
+Authentication
+POST /auth/signup – Create a new user
 
-## 📡 API Endpoints
+POST /auth/login – Authenticate user
 
-### Authentication
-- `POST /auth/signup` - Create account
-- `POST /auth/login` - Login
-- `GET /auth/me` - Get current user (requires auth)
+GET /auth/me – Retrieve current user (authenticated)
 
-### Equipment
-- `GET /equipment` - List all equipment
-- `GET /equipment/:id` - Get equipment details
-- `POST /equipment` - Create equipment
-- `PATCH /equipment/:id` - Update equipment
-- `DELETE /equipment/:id` - Delete equipment
+Equipment
+GET /equipment – List all equipment
 
-### Teams
-- `GET /teams` - List all teams
-- `GET /teams/:id` - Get team details
-- `POST /teams` - Create team
+GET /equipment/:id – Get equipment details
 
-### Requests (Core Feature)
-- `GET /requests` - List requests (supports `?status=`, `?equipment_id=`, `?type=`)
-- `GET /requests/:id` - Get request details
-- `POST /requests` - Create request
-- `PATCH /requests/:id/status` - Update status (for Kanban drag)
-- `PATCH /requests/:id` - Update request (for editing and drag-and-drop rescheduling)
-- `DELETE /requests/:id` - Delete request
-- `GET /requests/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD` - Get calendar events
-- `GET /requests/stats/summary` - Dashboard statistics
+POST /equipment – Create equipment
 
-## 🎨 Key Features
+PATCH /equipment/:id – Update equipment
 
-### Calendar View (STAR FEATURE ⭐)
-- Week view (Sunday-Saturday)
-- Hour-by-hour grid (24-hour format)
-- **Click empty slot** to create new maintenance request
-- **Click existing event** to edit or delete
-- **Drag-and-drop rescheduling** - Drag events to new time slots
-- **Smart overlap handling** - Multiple events at same time display side-by-side
-- Visual event blocks with status colors:
-  - 🔵 New - Blue
-  - 🟠 In Progress - Orange
-  - 🟢 Repaired - Green
-  - ⚫ Scrap - Gray
-- Current time indicator (yellow highlight)
-- Navigate weeks with Previous/Next/Today buttons
-- Shows event title, time, and duration
-- Auto-refreshes every 10 seconds
+DELETE /equipment/:id – Delete equipment
 
-### Kanban Board
-- Four columns: New, In Progress, Repaired, Scrap
-- **Drag-and-drop** to change status
-- Color-coded by request type (corrective/preventive)
-- Shows equipment, team, and scheduled date
-- Real-time status updates
+Teams
+GET /teams – List maintenance teams
 
-### Dashboard
-- Summary cards with statistics
-- Quick action links
-- Auto-refreshes every 10 seconds
+GET /teams/:id – Get team details
 
-## 🔐 Authentication
+POST /teams – Create team
 
-All API endpoints (except `/auth/signup` and `/auth/login`) require a JWT token in the Authorization header:
-```
+Maintenance Requests (Core)
+GET /requests – List requests (supports filters by status, equipment, type)
+
+GET /requests/:id – Request details
+
+POST /requests – Create request
+
+PATCH /requests/:id/status – Update request status (kanban)
+
+PATCH /requests/:id – Edit or reschedule request
+
+DELETE /requests/:id – Delete request
+
+GET /requests/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD – Calendar data
+
+GET /requests/stats/summary – Dashboard statistics
+
+Key Functional Areas
+Weekly Maintenance Calendar
+The calendar provides a time‑based view of preventive maintenance operations.
+
+Features:
+
+Weekly view (Sunday to Saturday)
+
+Hour-by-hour grid
+
+Click empty slots to create preventive requests
+
+Edit or delete existing events
+
+Drag-and-drop rescheduling
+
+Overlap handling for concurrent tasks
+
+Status‑based visual differentiation
+
+Current time indicator
+
+Week navigation controls
+
+Automatic refresh via polling (10‑second interval)
+
+Kanban Board
+Four lifecycle stages: New, In Progress, Repaired, Scrap
+
+Drag-and-drop status transitions
+
+Visual indicators for request type and assignment
+
+Shared data model with calendar and dashboard
+
+Dashboard
+Summary statistics derived from maintenance requests
+
+Quick access to key workflows
+
+Automatic refresh via polling
+
+Authentication & Security
+All protected API endpoints require a JWT token provided via the Authorization header:
+
 Authorization: Bearer <token>
-```
+Tokens are stored client-side and attached automatically to authenticated requests.
 
-Tokens are stored in localStorage and automatically included in requests.
+Database Schema (High-Level)
+users – User accounts
 
-## 📊 Database Schema
+teams – Maintenance teams
 
-- **users** - User accounts
-- **teams** - Maintenance teams
-- **equipment** - Assets (machines, vehicles)
-- **requests** - Maintenance requests (core table)
+equipment – Assets and equipment
 
-## 🎯 MVP Scope (What's Included)
+requests – Maintenance requests (core operational table)
 
-✅ **Included:**
-- Login/Signup
-- Asset management
-- Maintenance request creation
-- Weekly maintenance calendar
-- Kanban board
-- Role-agnostic (simple)
+MVP Scope
+Included
+User authentication
 
-❌ **Out of Scope (Not Built):**
-- Permissions matrix
-- Notifications
-- File uploads
-- External integrations
-- Complex analytics
+Equipment management
 
-## 🛠️ Development
+Maintenance request workflows
 
-### Backend
-- Uses ES modules (`type: "module"`)
-- Auto-creates database tables on startup
-- Polling-based "realtime" (10-second intervals)
+Weekly calendar view
 
-### Frontend
-- Vite for fast development
-- Proxy configured for API calls
-- Optimistic UI updates
-- Shared Layout component for consistent navigation
+Kanban board
 
-## 📝 Notes
+Basic team management
 
-- No third-party APIs used (pure PostgreSQL + Node.js + React)
-- Simple polling instead of WebSockets
-- Role-agnostic design (no complex permissions)
-- Clean, enterprise-grade UI
-- Easy to demo and explain
+Explicitly Out of Scope
+Fine-grained role permissions
 
-## 🚀 Deployment
+Notifications
 
-### Backend
-1. Set `NODE_ENV=production`
-2. Update `DATABASE_URL` to production database
-3. Set secure `JWT_SECRET`
-4. Run: `npm start`
+File uploads
 
-### Frontend
-1. Build: `npm run build`
-2. Serve `dist/` folder with any static file server
-3. Configure API proxy or update API_URL in code
+External system integrations
 
-## 📄 License
+Advanced analytics and reporting
 
+Development Notes
+Backend
+ES module syntax
+
+Automatic schema initialization
+
+Polling-based synchronization (no WebSockets)
+
+Frontend
+Vite-based build pipeline
+
+Optimistic UI updates
+
+Shared layout for consistent navigation
+
+Third-Party Dependency Policy
+No external SaaS APIs
+
+No external authentication providers
+
+No realtime messaging services
+
+Fully self-hosted architecture
+
+All functionality is implemented using:
+
+PostgreSQL
+
+Node.js
+
+Express
+
+React
+
+Deployment
+Backend
+Set NODE_ENV=production
+
+Configure production DATABASE_URL
+
+Set a secure JWT_SECRET
+
+Start server:
+
+npm start
+Frontend
+Build assets:
+
+npm run build
+Serve the generated dist/ directory using any static file server
+
+Configure API base URL as required
+
+License
 MIT
 
----
-
-**Built for Hackathon** - GearGuard combines assets, teams, and time into one unified maintenance workflow.
-
+GearGuard is designed as a focused, enterprise‑style maintenance planner that emphasizes clarity, reliability, and operational usability while remaining fully self‑contained and easy to evaluate.
