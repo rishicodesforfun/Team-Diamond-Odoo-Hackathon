@@ -9,7 +9,7 @@ const router = express.Router();
 // Signup
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, name, employeeId } = req.body;
+    const { email, password, name, employeeId, role } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
@@ -24,21 +24,33 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user - check if employee_id column exists, if not use basic insert
+    // Create user - try to insert with employee_id and role, fallback if columns don't exist
     let result;
     try {
-      // Try to insert with employee_id if column exists
+      // Try to insert with employee_id and role if columns exist
       result = await pool.query(
-        'INSERT INTO users (email, password_hash, name, employee_id) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
-        [email, passwordHash, name, employeeId || null]
+        'INSERT INTO users (email, password_hash, name, employee_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name',
+        [email, passwordHash, name, employeeId || null, role || null]
       );
     } catch (err) {
-      // If employee_id column doesn't exist, insert without it
+      // If role or employee_id columns don't exist, try with just employee_id
       if (err.code === '42703') { // column does not exist
-        result = await pool.query(
-          'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-          [email, passwordHash, name]
-        );
+        try {
+          result = await pool.query(
+            'INSERT INTO users (email, password_hash, name, employee_id) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
+            [email, passwordHash, name, employeeId || null]
+          );
+        } catch (err2) {
+          // If employee_id also doesn't exist, use basic insert
+          if (err2.code === '42703') {
+            result = await pool.query(
+              'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+              [email, passwordHash, name]
+            );
+          } else {
+            throw err2;
+          }
+        }
       } else {
         throw err;
       }

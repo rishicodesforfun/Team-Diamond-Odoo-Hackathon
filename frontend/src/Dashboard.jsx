@@ -11,10 +11,10 @@ const MOCK_USER = {
   email: 'demo@gearguard.com'
 };
 
-function Dashboard({ user }) {
+function Dashboard({ user, setUser }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const currentUser = user || MOCK_USER;
+  const currentUser = user;
 
   useEffect(() => {
     loadStats();
@@ -46,7 +46,7 @@ function Dashboard({ user }) {
   };
 
   return (
-    <Layout user={currentUser}>
+    <Layout user={currentUser} setUser={setUser}>
       <div className="dashboard-content">
           <div className="summary-cards">
             <div className="summary-card">

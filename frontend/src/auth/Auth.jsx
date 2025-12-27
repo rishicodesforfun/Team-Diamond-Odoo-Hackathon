@@ -9,6 +9,7 @@ function Auth({ setUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [employeeId, setEmployeeId] = useState('');
+  const [role, setRole] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ function Auth({ setUser }) {
       if (isLogin) {
         data = await login(email, password);
       } else {
-        data = await signup(email, password, name, employeeId);
+        data = await signup(email, password, name, employeeId, role);
       }
       setUser(data.user);
       navigate('/dashboard');
@@ -74,6 +75,7 @@ function Auth({ setUser }) {
     setEmail('');
     setPassword('');
     setEmployeeId('');
+    setRole('');
     setConfirmPassword('');
   };
 
@@ -131,6 +133,23 @@ function Auth({ setUser }) {
                   required={!isLogin}
                   placeholder="Enter your employee ID"
                 />
+              </div>
+            )}
+
+            {!isLogin && (
+              <div className="form-group">
+                <label>Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  required={!isLogin}
+                  className="form-select"
+                >
+                  <option value="">Select your role</option>
+                  <option value="employee">Employee</option>
+                  <option value="technician">Technician</option>
+                  <option value="manager">Manager</option>
+                </select>
               </div>
             )}
 

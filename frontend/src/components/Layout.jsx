@@ -2,13 +2,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../api/auth';
 import './Layout.css';
 
-function Layout({ children, user }) {
+function Layout({ children, user, setUser }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/auth');
+  };
+
+  const handleLogin = () => {
+    navigate('/auth');
   };
 
   const isActive = (path) => {
@@ -43,12 +49,27 @@ function Layout({ children, user }) {
       <div className="main-content">
         <header className="header">
           <div>
-            <h1>Welcome back, {user?.name || 'User'}</h1>
-            <p className="subtitle">Maintenance Dashboard</p>
+            {user ? (
+              <>
+                <h1>Welcome back, {user.name || 'User'}</h1>
+                <p className="subtitle">Maintenance Dashboard</p>
+              </>
+            ) : (
+              <>
+                <h1>GearGuard</h1>
+                <p className="subtitle">Smart Maintenance Planner</p>
+              </>
+            )}
           </div>
-          <button onClick={handleLogout} className="btn-logout">
-            Log Out
-          </button>
+          {user ? (
+            <button onClick={handleLogout} className="btn-logout">
+              Log Out
+            </button>
+          ) : (
+            <button onClick={handleLogin} className="btn-logout">
+              Login / Sign Up
+            </button>
+          )}
         </header>
         <div className="content-wrapper">
           {children}

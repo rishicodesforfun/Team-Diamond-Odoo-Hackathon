@@ -27,10 +27,8 @@ function App() {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
-    } else {
-      // Auto-set mock user for development (bypasses login)
-      setUser(MOCK_USER);
     }
+    // Removed auto-set mock user - users must login
     setLoading(false);
   }, []);
 
@@ -51,7 +49,7 @@ function App() {
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/dashboard" /> : <LandingPage />}
+        element={<Dashboard user={user} setUser={setUser} />}
       />
       <Route
         path="/auth"
@@ -67,7 +65,7 @@ function App() {
       />
       <Route
         path="/dashboard"
-        element={user ? <Dashboard user={user} /> : <Navigate to="/" />}
+        element={<Dashboard user={user} setUser={setUser} />}
       />
       <Route
         path="/equipment"
