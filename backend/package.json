@@ -7,8 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "migrate": "node migrate.js",
-    "migrate:add-is-usable": "node migrate-add-is-usable.js",
+    "migrate": "node migrate-complete.js",
+    "migrate:complete": "node migrate-complete.js",
     "seed:default-user": "node seed-default-user.js",
     "create:login-user": "node create-login-user.js"
   },
