@@ -22,70 +22,107 @@ function Layout({ children, user, setUser }) {
   };
 
   return (
-    <div className="layout">
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <h2>GearGuard</h2>
+    <div className="layout-container">
+      <aside className="dock glass">
+        <div className="dock-header">
+          <div className="dock-logo">
+            <span className="logo-text">GearGuard</span>
+          </div>
         </div>
-        <nav className="sidebar-nav">
-          <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}>
-            Dashboard
+        
+        <nav className="dock-nav">
+          <Link 
+            to="/dashboard" 
+            className={`dock-item ${isActive('/dashboard') ? 'active' : ''}`}
+            title="Dashboard"
+          >
+            <span className="dock-label">Dashboard</span>
           </Link>
-          <Link to="/calendar" className={`nav-item ${isActive('/calendar') ? 'active' : ''}`}>
-            Calendar
+          
+          <Link 
+            to="/calendar" 
+            className={`dock-item ${isActive('/calendar') ? 'active' : ''}`}
+            title="Calendar"
+          >
+            <span className="dock-label">Calendar</span>
           </Link>
-          <Link to="/requests" className={`nav-item ${isActive('/requests') ? 'active' : ''}`}>
-            Requests
+          
+          <Link 
+            to="/requests" 
+            className={`dock-item ${isActive('/requests') ? 'active' : ''}`}
+            title="Requests"
+          >
+            <span className="dock-label">Requests</span>
           </Link>
-          <Link to="/equipment" className={`nav-item ${isActive('/equipment') ? 'active' : ''}`}>
-            Equipment
+          
+          <Link 
+            to="/equipment" 
+            className={`dock-item ${isActive('/equipment') ? 'active' : ''}`}
+            title="Equipment"
+          >
+            <span className="dock-label">Equipment</span>
           </Link>
-          {/* Teams - Only visible to Managers */}
+          
           {user?.role === 'manager' && (
             <>
-              <Link to="/teams" className={`nav-item ${isActive('/teams') ? 'active' : ''}`}>
-                Teams
+              <div className="dock-divider"></div>
+              
+              <Link 
+                to="/teams" 
+                className={`dock-item ${isActive('/teams') ? 'active' : ''}`}
+                title="Teams"
+              >
+                <span className="dock-label">Teams</span>
               </Link>
-              <Link to="/users" className={`nav-item ${isActive('/users') ? 'active' : ''}`}>
-                Users
+              
+              <Link 
+                to="/users" 
+                className={`dock-item ${isActive('/users') ? 'active' : ''}`}
+                title="Users"
+              >
+                <span className="dock-label">Users</span>
               </Link>
             </>
           )}
         </nav>
-      </div>
 
-      <div className="main-content">
-        <header className="header">
-          <div>
+        <div className="dock-footer">
+          {user ? (
+            <button onClick={handleLogout} className="dock-logout" title="Log Out">
+              <span className="dock-label">Logout</span>
+            </button>
+          ) : (
+            <button onClick={handleLogin} className="dock-logout" title="Login">
+              <span className="dock-label">Login</span>
+            </button>
+          )}
+        </div>
+      </aside>
+
+      <main className="stage">
+        <div className="stage-header glass">
+          <div className="header-info">
             {user ? (
               <>
-                <h1>Welcome back, {user.name || 'User'}</h1>
-                <p className="subtitle">
-                  {user.role ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} - ` : ''}
+                <h1 className="header-title">Welcome back, {user.name || 'User'}</h1>
+                <p className="header-subtitle">
+                  {user.role ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} · ` : ''}
                   Maintenance Dashboard
                 </p>
               </>
             ) : (
               <>
-                <h1>GearGuard</h1>
-                <p className="subtitle">Smart Maintenance Planner</p>
+                <h1 className="header-title">GearGuard</h1>
+                <p className="header-subtitle">Smart Maintenance Planner</p>
               </>
             )}
           </div>
-          {user ? (
-            <button onClick={handleLogout} className="btn-logout">
-              Log Out
-            </button>
-          ) : (
-            <button onClick={handleLogin} className="btn-logout">
-              Login / Sign Up
-            </button>
-          )}
-        </header>
-        <div className="content-wrapper">
+        </div>
+        
+        <div className="stage-content">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
