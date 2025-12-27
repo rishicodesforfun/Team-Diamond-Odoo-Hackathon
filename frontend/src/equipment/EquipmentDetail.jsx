@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getEquipmentById, updateEquipment } from '../api/equipment';
+import { getEquipmentById, updateEquipment, getEquipmentRequestsCount } from '../api/equipment';
 import { getRequests } from '../api/requests';
 import { getTeams } from '../api/teams';
 import './EquipmentDetail.css';
@@ -22,6 +22,7 @@ function EquipmentDetail() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [openRequestsCount, setOpenRequestsCount] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -37,10 +38,11 @@ function EquipmentDetail() {
 
   const loadData = async () => {
     try {
-      const [equipmentData, requestsData, teamsData] = await Promise.all([
+      const [equipmentData, requestsData, teamsData, countData] = await Promise.all([
         getEquipmentById(id),
         getRequests({ equipment_id: id }),
-        getTeams()
+        getTeams(),
+        getEquipmentRequestsCount(id).catch(() => ({ data: { open_count: 0 } }))
       ]);
       
       const eq = equipmentData.data;
@@ -53,6 +55,7 @@ function EquipmentDetail() {
       });
       setRequests(requestsData.data || []);
       setTeams(teamsData.data || []);
+      setOpenRequestsCount(countData.data?.open_count || 0);
     } catch (err) {
       console.error('Failed to load data:', err);
       if (err.response?.status === 404) {
@@ -61,6 +64,11 @@ function EquipmentDetail() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSmartButtonClick = () => {
+    // Navigate to requests page with equipment filter
+    navigate(`/requests?equipment_id=${id}`);
   };
 
   const handleSubmit = async (e) => {
@@ -97,7 +105,18 @@ function EquipmentDetail() {
 
       <div className="detail-content">
         <div className="detail-card">
-          <h2>Equipment Details</h2>
+          <div className="detail-card-header">
+            <h2>Equipment Details</h2>
+            {openRequestsCount > 0 && (
+              <button
+                onClick={handleSmartButtonClick}
+                className="smart-button"
+                title={`View ${openRequestsCount} open maintenance request(s) for this equipment`}
+              >
+                🔧 {openRequestsCount} Open Request{openRequestsCount !== 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
           {editing ? (
             <form onSubmit={handleSubmit}>
               <div className="form-group">

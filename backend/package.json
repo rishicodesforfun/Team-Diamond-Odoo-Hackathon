@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "migrate": "node migrate.js",
+    "migrate:add-is-usable": "node migrate-add-is-usable.js",
+    "seed:default-user": "node seed-default-user.js",
+    "create:login-user": "node create-login-user.js"
   },
   "dependencies": {
     "express": "^4.18.2",

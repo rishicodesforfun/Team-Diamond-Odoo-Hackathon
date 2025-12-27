@@ -160,13 +160,23 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Create request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Create request error:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
 // Update request status (for Kanban drag)
 router.patch('/:id/status', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { status } = req.body;
 
@@ -174,7 +184,23 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Valid status is required' });
     }
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // Get the request to find equipment_id
+    const requestResult = await client.query(
+      'SELECT equipment_id FROM requests WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (requestResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const equipmentId = requestResult.rows[0].equipment_id;
+
+    // Update request status
+    const result = await client.query(
       `UPDATE requests 
        SET status = $1, updated_at = CURRENT_TIMESTAMP 
        WHERE id = $2 
@@ -182,14 +208,51 @@ router.patch('/:id/status', async (req, res) => {
       [status, req.params.id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
+    // SCRAP LOGIC: If status is 'scrap', mark equipment as unusable
+    if (status === 'scrap' && equipmentId) {
+      try {
+        await client.query(
+          `UPDATE equipment 
+           SET is_usable = FALSE 
+           WHERE id = $1`,
+          [equipmentId]
+        );
+      } catch (scrapError) {
+        console.error('❌ Scrap Logic Error (updating equipment.is_usable):', {
+          message: scrapError.message,
+          code: scrapError.code,
+          detail: scrapError.detail,
+          hint: scrapError.hint,
+          equipmentId: equipmentId
+        });
+        // Don't fail the whole request if scrap logic fails, but log it
+        // The request status update should still succeed
+      }
     }
 
+    await client.query('COMMIT');
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update request status error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('❌ Rollback failed:', rollbackError.message);
+    }
+    console.error('❌ Update request status error:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack,
+      requestId: req.params.id,
+      status: req.body.status
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
   }
 });
 
@@ -256,19 +319,75 @@ router.patch('/:id', async (req, res) => {
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(req.params.id);
 
-    const result = await pool.query(
-      `UPDATE requests SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
-      values
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
+      // Get equipment_id before update
+      const requestCheck = await client.query(
+        'SELECT equipment_id FROM requests WHERE id = $1',
+        [req.params.id]
+      );
+
+      if (requestCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Request not found' });
+      }
+
+      const equipmentId = requestCheck.rows[0].equipment_id;
+
+      // Update request
+      const result = await client.query(
+        `UPDATE requests SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+
+      // SCRAP LOGIC: If status is being set to 'scrap', mark equipment as unusable
+      if (status === 'scrap' && equipmentId) {
+        try {
+          await client.query(
+            `UPDATE equipment 
+             SET is_usable = FALSE 
+             WHERE id = $1`,
+            [equipmentId]
+          );
+        } catch (scrapError) {
+          console.error('❌ Scrap Logic Error (updating equipment.is_usable):', {
+            message: scrapError.message,
+            code: scrapError.code,
+            detail: scrapError.detail,
+            hint: scrapError.hint,
+            equipmentId: equipmentId
+          });
+          // Don't fail the whole request if scrap logic fails, but log it
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json(result.rows[0]);
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('❌ Rollback failed:', rollbackError.message);
+      }
+      throw error;
+    } finally {
+      client.release();
     }
-
-    res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Update request error:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack,
+      requestId: req.params.id
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

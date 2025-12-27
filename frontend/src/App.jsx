@@ -27,9 +27,10 @@ function App() {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+    } else {
+      // Auto-set mock user for development (bypasses login)
+      setUser(MOCK_USER);
     }
-    // Uncomment below to auto-set mock user for development
-    // setUser(MOCK_USER);
     setLoading(false);
   }, []);
 
