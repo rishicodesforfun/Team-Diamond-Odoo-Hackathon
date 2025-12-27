@@ -9,7 +9,7 @@ const router = express.Router();
 // Signup
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, employeeId } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
@@ -24,11 +24,25 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user
-    const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-      [email, passwordHash, name]
-    );
+    // Create user - check if employee_id column exists, if not use basic insert
+    let result;
+    try {
+      // Try to insert with employee_id if column exists
+      result = await pool.query(
+        'INSERT INTO users (email, password_hash, name, employee_id) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
+        [email, passwordHash, name, employeeId || null]
+      );
+    } catch (err) {
+      // If employee_id column doesn't exist, insert without it
+      if (err.code === '42703') { // column does not exist
+        result = await pool.query(
+          'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+          [email, passwordHash, name]
+        );
+      } else {
+        throw err;
+      }
+    }
 
     const user = result.rows[0];
 
