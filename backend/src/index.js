@@ -126,12 +126,12 @@ async function runMigrations() {
       const userCount = parseInt(anyUserCheck.rows[0].count);
       
       if (userCount === 0) {
-        // No users exist, set sequence to start at 1 and insert
-        await client.query(`SELECT setval('users_id_seq', 1, false)`);
+        // No users exist, insert with explicit ID 1 and set sequence to 2
         await client.query(`
           INSERT INTO users (id, email, password_hash, name)
           VALUES (1, 'demo@gearguard.com', '$2a$10$dummy.hash.for.mock.auth', 'Demo User')
         `);
+        await client.query(`SELECT setval('users_id_seq', 2, false)`);
         console.log('✅ Created default demo user (ID: 1)');
       } else {
         // Users exist but ID 1 doesn't - try to insert with explicit ID
