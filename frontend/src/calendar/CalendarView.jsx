@@ -58,17 +58,23 @@ function CalendarView() {
       const weekStart = getWeekStart(currentWeek);
       const weekEnd = getWeekEnd(currentWeek);
       
+      console.log('Loading calendar data for:', weekStart, 'to', weekEnd);
+      
       const [eventsData, equipmentData, teamsData] = await Promise.all([
         getCalendarEvents(weekStart, weekEnd),
         getEquipment(),
         getTeams()
       ]);
       
+      console.log('Events response:', eventsData);
+      console.log('Events data:', eventsData.data);
+      
       setEvents(eventsData.data || []);
       setEquipment(equipmentData.data || []);
       setTeams(teamsData.data || []);
     } catch (err) {
       console.error('Failed to load data:', err);
+      console.error('Error details:', err.response?.data);
     }
   };
 
@@ -406,6 +412,22 @@ function CalendarView() {
           ))}
         </div>
       </div>
+
+      {events.length === 0 && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '2rem', 
+          color: '#666',
+          background: 'white',
+          borderRadius: '8px',
+          marginTop: '1rem'
+        }}>
+          <p>No maintenance requests scheduled for this week.</p>
+          <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            Click on any time slot to create a new request.
+          </p>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
