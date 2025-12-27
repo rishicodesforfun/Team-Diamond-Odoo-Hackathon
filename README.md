@@ -118,7 +118,8 @@ The frontend will be available at `http://localhost:3000`
 - `GET /requests/:id` - Get request details
 - `POST /requests` - Create request
 - `PATCH /requests/:id/status` - Update status (for Kanban drag)
-- `PATCH /requests/:id` - Update request
+- `PATCH /requests/:id` - Update request (for editing and drag-and-drop rescheduling)
+- `DELETE /requests/:id` - Delete request
 - `GET /requests/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD` - Get calendar events
 - `GET /requests/stats/summary` - Dashboard statistics
 
@@ -126,17 +127,27 @@ The frontend will be available at `http://localhost:3000`
 
 ### Calendar View (STAR FEATURE ⭐)
 - Week view (Sunday-Saturday)
-- Hour-by-hour grid
-- Click empty slot to create request
-- Visual event blocks with status colors
-- Current time indicator
-- Drag to navigate weeks
+- Hour-by-hour grid (24-hour format)
+- **Click empty slot** to create new maintenance request
+- **Click existing event** to edit or delete
+- **Drag-and-drop rescheduling** - Drag events to new time slots
+- **Smart overlap handling** - Multiple events at same time display side-by-side
+- Visual event blocks with status colors:
+  - 🔵 New - Blue
+  - 🟠 In Progress - Orange
+  - 🟢 Repaired - Green
+  - ⚫ Scrap - Gray
+- Current time indicator (yellow highlight)
+- Navigate weeks with Previous/Next/Today buttons
+- Shows event title, time, and duration
+- Auto-refreshes every 10 seconds
 
 ### Kanban Board
 - Four columns: New, In Progress, Repaired, Scrap
-- Drag-and-drop to change status
+- **Drag-and-drop** to change status
 - Color-coded by request type (corrective/preventive)
 - Shows equipment, team, and scheduled date
+- Real-time status updates
 
 ### Dashboard
 - Summary cards with statistics

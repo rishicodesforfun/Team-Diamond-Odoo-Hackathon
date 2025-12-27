@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getCalendarEvents, createRequest } from '../api/requests';
+import { getCalendarEvents, createRequest, updateRequest } from '../api/requests';
 import { getEquipment } from '../api/equipment';
 import { getTeams } from '../api/teams';
+import api from '../api/api';
 import './CalendarView.css';
 
 // Mock user fallback
@@ -20,7 +21,9 @@ function CalendarView() {
   const [teams, setTeams] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [formData, setFormData] = useState({
     equipment_id: '',
     team_id: '',
@@ -30,6 +33,17 @@ function CalendarView() {
     start_time: '09:00',
     duration_hours: 1.0
   });
+  const [editFormData, setEditFormData] = useState({
+    equipment_id: '',
+    team_id: '',
+    type: 'preventive',
+    title: '',
+    description: '',
+    scheduled_date: '',
+    start_time: '09:00',
+    duration_hours: 1.0
+  });
+  const [draggedEventId, setDraggedEventId] = useState(null);
 
   useEffect(() => {
     // Bypass auth - use mock user
@@ -123,6 +137,91 @@ function CalendarView() {
     }
   };
 
+  const handleEventClick = (e, event) => {
+    e.stopPropagation();
+    setSelectedEvent(event);
+    setEditFormData({
+      equipment_id: event.equipment_id || '',
+      team_id: event.team_id || '',
+      type: event.type || 'preventive',
+      title: event.title || '',
+      description: event.description || '',
+      scheduled_date: event.date || '',
+      start_time: event.startTime || '09:00',
+      duration_hours: event.durationHours || 1.0
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await updateRequest(selectedEvent.id, editFormData);
+      setShowEditModal(false);
+      setSelectedEvent(null);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update request');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this request?')) {
+      return;
+    }
+    try {
+      await api.delete(`/requests/${selectedEvent.id}`);
+      setShowEditModal(false);
+      setSelectedEvent(null);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete request');
+    }
+  };
+
+  const handleDragStart = (e, event) => {
+    e.stopPropagation();
+    setDraggedEventId(event.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, day, hour) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedEventId) return;
+
+    const draggedEvent = events.find(ev => ev.id === draggedEventId);
+    if (!draggedEvent) return;
+
+    const newDate = formatDate(day);
+    const newStartTime = `${hour.toString().padStart(2, '0')}:00`;
+
+    // Only update if the date or time has changed
+    if (draggedEvent.date === newDate && draggedEvent.startTime === newStartTime) {
+      setDraggedEventId(null);
+      return;
+    }
+
+    try {
+      await updateRequest(draggedEventId, {
+        scheduled_date: newDate,
+        start_time: newStartTime
+      });
+      setDraggedEventId(null);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to reschedule request');
+      setDraggedEventId(null);
+    }
+  };
+
   const getEventsForSlot = (day, hour) => {
     const dayStr = formatDate(day);
     return events.filter(event => {
@@ -133,7 +232,58 @@ function CalendarView() {
     });
   };
 
-  const getEventStyle = (event) => {
+  const getEventsForDay = (day) => {
+    const dayStr = formatDate(day);
+    return events.filter(event => event.date === dayStr);
+  };
+
+  const eventsOverlap = (event1, event2) => {
+    const start1 = parseInt(event1.startTime?.split(':')[0] || 0);
+    const end1 = start1 + parseFloat(event1.durationHours || 1);
+    const start2 = parseInt(event2.startTime?.split(':')[0] || 0);
+    const end2 = start2 + parseFloat(event2.durationHours || 1);
+    
+    return start1 < end2 && start2 < end1;
+  };
+
+  const calculateEventPositions = (day) => {
+    const dayEvents = getEventsForDay(day);
+    const positions = {};
+    
+    // Group overlapping events into clusters
+    const clusters = [];
+    dayEvents.forEach(event => {
+      let addedToCluster = false;
+      
+      for (let cluster of clusters) {
+        // Check if this event overlaps with any event in the cluster
+        if (cluster.some(clusterEvent => eventsOverlap(event, clusterEvent))) {
+          cluster.push(event);
+          addedToCluster = true;
+          break;
+        }
+      }
+      
+      if (!addedToCluster) {
+        clusters.push([event]);
+      }
+    });
+    
+    // Calculate positions for each cluster
+    clusters.forEach(cluster => {
+      const clusterSize = cluster.length;
+      cluster.forEach((event, index) => {
+        positions[event.id] = {
+          width: `${100 / clusterSize}%`,
+          left: `${(100 / clusterSize) * index}%`
+        };
+      });
+    });
+    
+    return positions;
+  };
+
+  const getEventStyle = (event, day) => {
     const startHour = parseInt(event.startTime?.split(':')[0] || 0);
     const duration = parseFloat(event.durationHours || 1);
     const top = (startHour % 24) * 60;
@@ -146,20 +296,25 @@ function CalendarView() {
       scrap: '#95a5a6'
     };
 
+    const positions = calculateEventPositions(day);
+    const position = positions[event.id] || { width: '100%', left: '0%' };
+
     return {
       top: `${top}px`,
       height: `${height}px`,
       backgroundColor: statusColors[event.status] || '#3498db',
       position: 'absolute',
-      width: 'calc(100% - 4px)',
-      margin: '2px',
+      width: position.width,
+      left: position.left,
       borderRadius: '4px',
       padding: '4px 8px',
       color: 'white',
       fontSize: '0.85rem',
       overflow: 'hidden',
-      cursor: 'pointer',
-      zIndex: 10
+      cursor: 'move',
+      zIndex: 10,
+      opacity: draggedEventId === event.id ? 0.5 : 1,
+      border: '1px solid rgba(255, 255, 255, 0.3)'
     };
   };
 
@@ -225,12 +380,17 @@ function CalendarView() {
                       key={hour}
                       className={`time-slot ${isCurrentTime ? 'current-time' : ''}`}
                       onClick={() => handleSlotClick(day, hour)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, day, hour)}
                     >
                       {slotEvents.map(event => (
                         <div
                           key={event.id}
-                          style={getEventStyle(event)}
+                          style={getEventStyle(event, day)}
                           title={`${event.title} - ${event.equipment_name || ''}`}
+                          onClick={(e) => handleEventClick(e, event)}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, event)}
                         >
                           <div className="event-title">{event.title}</div>
                           <div className="event-time">
@@ -333,6 +493,111 @@ function CalendarView() {
                 </button>
                 <button type="submit" className="btn-primary">
                   Create Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && selectedEvent && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Edit Maintenance Request</h3>
+            <form onSubmit={handleEditSubmit}>
+              <div className="form-group">
+                <label>Equipment *</label>
+                <select
+                  value={editFormData.equipment_id}
+                  onChange={(e) => setEditFormData({ ...editFormData, equipment_id: e.target.value })}
+                  required
+                >
+                  <option value="">Select equipment</option>
+                  {equipment.map(eq => (
+                    <option key={eq.id} value={eq.id}>{eq.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Team</label>
+                <select
+                  value={editFormData.team_id}
+                  onChange={(e) => setEditFormData({ ...editFormData, team_id: e.target.value })}
+                >
+                  <option value="">Select team</option>
+                  {teams.map(team => (
+                    <option key={team.id} value={team.id}>{team.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Type *</label>
+                <select
+                  value={editFormData.type}
+                  onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                  required
+                >
+                  <option value="preventive">Preventive</option>
+                  <option value="corrective">Corrective</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  value={editFormData.title}
+                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                  required
+                  placeholder="e.g., Motor Repair"
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  rows="3"
+                  placeholder="Additional details..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Scheduled Date</label>
+                <input
+                  type="date"
+                  value={editFormData.scheduled_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, scheduled_date: e.target.value })}
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Time</label>
+                  <input
+                    type="time"
+                    value={editFormData.start_time}
+                    onChange={(e) => setEditFormData({ ...editFormData, start_time: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Duration (hours)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    value={editFormData.duration_hours}
+                    onChange={(e) => setEditFormData({ ...editFormData, duration_hours: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={handleDelete} className="btn-delete">
+                  Delete
+                </button>
+                <div style={{ flex: 1 }}></div>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-cancel">
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Save Changes
                 </button>
               </div>
             </form>
