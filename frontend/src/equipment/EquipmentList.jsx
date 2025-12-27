@@ -28,8 +28,14 @@ function EquipmentList() {
   });
 
   useEffect(() => {
-    // Bypass auth - use mock user
-    setUser(MOCK_USER);
+    // Get user from localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    } else {
+      // Fallback to mock user
+      setUser(MOCK_USER);
+    }
     loadData();
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
@@ -96,9 +102,12 @@ function EquipmentList() {
       <div className="equipment-list">
       <div className="equipment-header">
         <h1>Equipment</h1>
-        <button onClick={() => setShowModal(true)} className="btn-primary">
-          + Add Equipment
-        </button>
+        {/* Only Managers can add equipment */}
+        {user?.role === 'manager' && (
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            + Add Equipment
+          </button>
+        )}
       </div>
 
       <div className="equipment-grid">
@@ -110,12 +119,15 @@ function EquipmentList() {
                 <Link to={`/equipment/${item.id}`} className="btn-link">
                   View
                 </Link>
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="btn-delete"
-                >
-                  Delete
-                </button>
+                {/* Only Managers can delete equipment (scrap) */}
+                {user?.role === 'manager' && (
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="btn-delete"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
             <div className="card-body">

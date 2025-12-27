@@ -42,8 +42,14 @@ function RequestsKanban() {
   const [filterEquipmentId, setFilterEquipmentId] = useState(null);
 
   useEffect(() => {
-    // Bypass auth - use mock user
-    setUser(MOCK_USER);
+    // Get user from localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    } else {
+      // Fallback to mock user
+      setUser(MOCK_USER);
+    }
     
     // Check for equipment filter in URL
     const equipmentId = searchParams.get('equipment_id');
@@ -78,6 +84,11 @@ function RequestsKanban() {
   };
 
   const handleDragStart = (e, request) => {
+    // Employees cannot drag cards (read-only)
+    if (user?.role === 'employee') {
+      e.preventDefault();
+      return;
+    }
     setDraggedItem(request);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -172,9 +183,28 @@ function RequestsKanban() {
         </div>
         <div className="kanban-actions">
           <Link to="/calendar" className="btn-secondary">View Calendar</Link>
-          <button onClick={() => setShowModal(true)} className="btn-primary">
-            + Create Request
-          </button>
+          {/* Employees can only create corrective requests, Technicians cannot create preventive */}
+          {user?.role !== 'employee' || (
+            <button onClick={() => {
+              setFormData({ ...formData, type: 'corrective' });
+              setShowModal(true);
+            }} className="btn-primary">
+              + Create Corrective Request
+            </button>
+          )}
+          {(user?.role === 'manager') && (
+            <button onClick={() => setShowModal(true)} className="btn-primary">
+              + Create Request
+            </button>
+          )}
+          {user?.role === 'technician' && (
+            <button onClick={() => {
+              setFormData({ ...formData, type: 'corrective' });
+              setShowModal(true);
+            }} className="btn-primary">
+              + Create Corrective Request
+            </button>
+          )}
         </div>
       </div>
 
@@ -195,8 +225,9 @@ function RequestsKanban() {
                 <div
                   key={request.id}
                   className="kanban-card"
-                  draggable
+                  draggable={user?.role !== 'employee'}
                   onDragStart={(e) => handleDragStart(e, request)}
+                  style={{ cursor: user?.role === 'employee' ? 'default' : 'grab' }}
                 >
                   <div className="card-header">
                     <span className={`type-badge ${request.type}`}>
@@ -254,15 +285,29 @@ function RequestsKanban() {
               </div>
               <div className="form-group">
                 <label>Team</label>
-                <select
-                  value={formData.team_id}
-                  onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
-                >
-                  <option value="">Select team</option>
-                  {teams.map(team => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
+                {user?.role === 'technician' ? (
+                  <>
+                    <input
+                      type="text"
+                      value="Auto-assigned to you"
+                      disabled
+                      style={{ backgroundColor: '#f5f5f5' }}
+                    />
+                    <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+                      Technicians are automatically assigned to their own requests
+                    </small>
+                  </>
+                ) : (
+                  <select
+                    value={formData.team_id}
+                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+                  >
+                    <option value="">Select team</option>
+                    {teams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="form-group">
                 <label>Type *</label>
@@ -270,10 +315,18 @@ function RequestsKanban() {
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   required
+                  disabled={user?.role === 'technician' || user?.role === 'employee'}
                 >
                   <option value="corrective">Corrective (Breakdown)</option>
-                  <option value="preventive">Preventive (Scheduled)</option>
+                  {user?.role === 'manager' && (
+                    <option value="preventive">Preventive (Scheduled)</option>
+                  )}
                 </select>
+                {user?.role === 'technician' && (
+                  <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+                    Technicians can only create corrective requests
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Title *</label>

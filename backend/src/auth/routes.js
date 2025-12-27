@@ -24,43 +24,19 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user - try to insert with employee_id and role, fallback if columns don't exist
-    let result;
-    try {
-      // Try to insert with employee_id and role if columns exist
-      result = await pool.query(
-        'INSERT INTO users (email, password_hash, name, employee_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name',
-        [email, passwordHash, name, employeeId || null, role || null]
-      );
-    } catch (err) {
-      // If role or employee_id columns don't exist, try with just employee_id
-      if (err.code === '42703') { // column does not exist
-        try {
-          result = await pool.query(
-            'INSERT INTO users (email, password_hash, name, employee_id) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
-            [email, passwordHash, name, employeeId || null]
-          );
-        } catch (err2) {
-          // If employee_id also doesn't exist, use basic insert
-          if (err2.code === '42703') {
-            result = await pool.query(
-              'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-              [email, passwordHash, name]
-            );
-          } else {
-            throw err2;
-          }
-        }
-      } else {
-        throw err;
-      }
-    }
+    // Create user with role defaulting to 'employee'
+    const userRole = role || 'employee';
+    
+    const result = await pool.query(
+      'INSERT INTO users (email, password_hash, name, employee_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role',
+      [email, passwordHash, name, employeeId || null, userRole]
+    );
 
     const user = result.rows[0];
 
-    // Generate JWT
+    // Generate JWT with role
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
       { expiresIn: '7d' }
     );
@@ -70,7 +46,8 @@ router.post('/signup', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
   } catch (error) {
@@ -102,9 +79,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT
+    // Generate JWT with role
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
       { expiresIn: '7d' }
     );
@@ -114,7 +91,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
   } catch (error) {
@@ -127,7 +105,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, created_at FROM users WHERE id = $1',
       [req.userId]
     );
 

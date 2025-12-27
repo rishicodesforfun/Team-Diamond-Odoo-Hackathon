@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../db/connection.js';
-import { authenticateToken } from '../auth/middleware.js';
+import { authenticateToken, requireRole } from '../auth/middleware.js';
 
 const router = express.Router();
 
@@ -59,8 +59,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create equipment
-router.post('/', async (req, res) => {
+// Create equipment - Only managers
+router.post('/', requireRole('manager'), async (req, res) => {
   try {
     const { name, category, location, maintenance_team_id } = req.body;
 
@@ -82,8 +82,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update equipment
-router.patch('/:id', async (req, res) => {
+// Update equipment - Only managers
+router.patch('/:id', requireRole('manager'), async (req, res) => {
   try {
     const { name, category, location, maintenance_team_id } = req.body;
     const updates = [];
@@ -128,8 +128,8 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// Delete equipment
-router.delete('/:id', async (req, res) => {
+// Delete equipment (Scrap) - Only managers
+router.delete('/:id', requireRole('manager'), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM equipment WHERE id = $1 RETURNING id', [req.params.id]);
 

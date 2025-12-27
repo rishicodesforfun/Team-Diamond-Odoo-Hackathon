@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../db/connection.js';
-import { authenticateToken } from '../auth/middleware.js';
+import { authenticateToken, requireRole } from '../auth/middleware.js';
 
 const router = express.Router();
 
@@ -138,6 +138,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Type must be "corrective" or "preventive"' });
     }
 
+    // RBAC: Only managers can create preventive requests
+    if (type === 'preventive' && req.user.role !== 'manager') {
+      return res.status(403).json({ 
+        error: 'Forbidden', 
+        message: 'Only managers can create preventive maintenance requests' 
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO requests (
         equipment_id, team_id, user_id, type, title, description,
@@ -174,8 +182,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update request status (for Kanban drag)
-router.patch('/:id/status', async (req, res) => {
+// Update request status (for Kanban drag) - Managers and Technicians only
+router.patch('/:id/status', requireRole(['manager', 'technician']), async (req, res) => {
   const client = await pool.connect();
   try {
     const { status } = req.body;

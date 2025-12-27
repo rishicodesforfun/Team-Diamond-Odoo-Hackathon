@@ -8,6 +8,7 @@ export function authenticateToken(req, res, next) {
   if (!token) {
     // Set a default userId for bypass mode
     req.userId = 1; // Default user ID
+    req.user = { id: 1, role: 'manager' }; // Default to manager for dev
     return next();
   }
 
@@ -15,10 +16,33 @@ export function authenticateToken(req, res, next) {
     if (err) {
       // If token is invalid, still allow with default user
       req.userId = 1;
+      req.user = { id: 1, role: 'manager' };
       return next();
     }
     req.userId = user.userId;
+    req.user = { id: user.userId, email: user.email, role: user.role };
     next();
   });
+}
+
+// Role-based access control middleware
+export function requireRole(allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userRole = req.user.role;
+    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+
+    if (!roles.includes(userRole)) {
+      return res.status(403).json({ 
+        error: 'Forbidden', 
+        message: `Access denied. Required role: ${roles.join(' or ')}` 
+      });
+    }
+
+    next();
+  };
 }
 

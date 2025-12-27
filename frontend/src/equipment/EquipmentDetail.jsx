@@ -31,8 +31,14 @@ function EquipmentDetail() {
   });
 
   useEffect(() => {
-    // Bypass auth - use mock user
-    setUser(MOCK_USER);
+    // Get user from localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    } else {
+      // Fallback to mock user
+      setUser(MOCK_USER);
+    }
     loadData();
   }, [id]);
 
@@ -95,12 +101,15 @@ function EquipmentDetail() {
       <div className="equipment-detail">
       <div className="detail-header">
         <Link to="/equipment" className="back-link">← Back to Equipment</Link>
-        <button
-          onClick={() => setEditing(!editing)}
-          className="btn-edit"
-        >
-          {editing ? 'Cancel' : 'Edit'}
-        </button>
+        {/* Only Managers can edit equipment */}
+        {user?.role === 'manager' && (
+          <button
+            onClick={() => setEditing(!editing)}
+            className="btn-edit"
+          >
+            {editing ? 'Cancel' : 'Edit'}
+          </button>
+        )}
       </div>
 
       <div className="detail-content">

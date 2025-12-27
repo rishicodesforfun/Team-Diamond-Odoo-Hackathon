@@ -44,7 +44,14 @@ function CalendarView() {
   });
 
   useEffect(() => {
-    setUser(MOCK_USER);
+    // Get user from localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    } else {
+      // Fallback to mock user
+      setUser(MOCK_USER);
+    }
     loadData();
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
@@ -126,10 +133,18 @@ function CalendarView() {
 
   const handleTimeSlotClick = (hour) => {
     if (!selectedDate) return;
+    
+    // Employees cannot create events from calendar
+    if (user?.role === 'employee') {
+      alert('Employees can only create corrective requests from the Requests page.');
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       scheduled_date: formatDate(selectedDate),
-      start_time: `${hour.toString().padStart(2, '0')}:00`
+      start_time: `${hour.toString().padStart(2, '0')}:00`,
+      type: user?.role === 'technician' ? 'corrective' : 'preventive'
     }));
     setShowModal(true);
   };
@@ -174,6 +189,12 @@ function CalendarView() {
   };
 
   const handleEventClick = (event) => {
+    // Employees have read-only access
+    if (user?.role === 'employee') {
+      alert('Employees have read-only access to the calendar.');
+      return;
+    }
+    
     setSelectedEvent(event);
     setEditFormData({
       equipment_id: event.equipment_id || '',
@@ -318,17 +339,23 @@ function CalendarView() {
                 )}
                 <div className="time-slots">
                   <h4>Add New Event</h4>
-                  <div className="time-slot-grid">
-                    {hours.map(hour => (
-                      <button
-                        key={hour}
-                        className="time-slot-btn"
-                        onClick={() => handleTimeSlotClick(hour)}
-                      >
-                        {hour.toString().padStart(2, '0')}:00
-                      </button>
-                    ))}
-                  </div>
+                  {user?.role === 'employee' ? (
+                    <p style={{ color: '#666', fontSize: '0.9rem', padding: '1rem' }}>
+                      Employees have read-only access. Create corrective requests from the Requests page.
+                    </p>
+                  ) : (
+                    <div className="time-slot-grid">
+                      {hours.map(hour => (
+                        <button
+                          key={hour}
+                          className="time-slot-btn"
+                          onClick={() => handleTimeSlotClick(hour)}
+                        >
+                          {hour.toString().padStart(2, '0')}:00
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,15 +382,29 @@ function CalendarView() {
                 </div>
                 <div className="form-group">
                   <label>Team</label>
-                  <select
-                    value={formData.team_id}
-                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
-                  >
-                    <option value="">Select team</option>
-                    {teams.map(team => (
-                      <option key={team.id} value={team.id}>{team.name}</option>
-                    ))}
-                  </select>
+                  {user?.role === 'technician' ? (
+                    <>
+                      <input
+                        type="text"
+                        value="Auto-assigned to you"
+                        disabled
+                        style={{ backgroundColor: '#f5f5f5' }}
+                      />
+                      <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+                        Technicians are automatically assigned to their own requests
+                      </small>
+                    </>
+                  ) : (
+                    <select
+                      value={formData.team_id}
+                      onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+                    >
+                      <option value="">Select team</option>
+                      {teams.map(team => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Type *</label>
@@ -371,10 +412,18 @@ function CalendarView() {
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     required
+                    disabled={user?.role === 'technician'}
                   >
-                    <option value="preventive">Preventive</option>
+                    {user?.role === 'manager' && (
+                      <option value="preventive">Preventive</option>
+                    )}
                     <option value="corrective">Corrective</option>
                   </select>
+                  {user?.role === 'technician' && (
+                    <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+                      Technicians can only create corrective requests
+                    </small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Title *</label>
@@ -448,15 +497,26 @@ function CalendarView() {
                 </div>
                 <div className="form-group">
                   <label>Team</label>
-                  <select
-                    value={editFormData.team_id}
-                    onChange={(e) => setEditFormData({ ...editFormData, team_id: e.target.value })}
-                  >
-                    <option value="">Select team</option>
-                    {teams.map(team => (
-                      <option key={team.id} value={team.id}>{team.name}</option>
-                    ))}
-                  </select>
+                  {user?.role === 'technician' ? (
+                    <>
+                      <input
+                        type="text"
+                        value="Auto-assigned to you"
+                        disabled
+                        style={{ backgroundColor: '#f5f5f5' }}
+                      />
+                    </>
+                  ) : (
+                    <select
+                      value={editFormData.team_id}
+                      onChange={(e) => setEditFormData({ ...editFormData, team_id: e.target.value })}
+                    >
+                      <option value="">Select team</option>
+                      {teams.map(team => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Type *</label>
@@ -464,8 +524,11 @@ function CalendarView() {
                     value={editFormData.type}
                     onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
                     required
+                    disabled={user?.role === 'technician'}
                   >
-                    <option value="preventive">Preventive</option>
+                    {user?.role === 'manager' && (
+                      <option value="preventive">Preventive</option>
+                    )}
                     <option value="corrective">Corrective</option>
                   </select>
                 </div>

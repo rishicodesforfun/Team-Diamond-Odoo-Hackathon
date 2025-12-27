@@ -40,9 +40,12 @@ function Layout({ children, user, setUser }) {
           <Link to="/equipment" className={`nav-item ${isActive('/equipment') ? 'active' : ''}`}>
             Equipment
           </Link>
-          <Link to="/teams" className={`nav-item ${isActive('/teams') ? 'active' : ''}`}>
-            Teams
-          </Link>
+          {/* Teams - Only visible to Managers */}
+          {user?.role === 'manager' && (
+            <Link to="/teams" className={`nav-item ${isActive('/teams') ? 'active' : ''}`}>
+              Teams
+            </Link>
+          )}
         </nav>
       </div>
 
@@ -52,7 +55,10 @@ function Layout({ children, user, setUser }) {
             {user ? (
               <>
                 <h1>Welcome back, {user.name || 'User'}</h1>
-                <p className="subtitle">Maintenance Dashboard</p>
+                <p className="subtitle">
+                  {user.role ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} - ` : ''}
+                  Maintenance Dashboard
+                </p>
               </>
             ) : (
               <>

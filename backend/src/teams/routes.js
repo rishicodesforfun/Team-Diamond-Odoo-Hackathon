@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../db/connection.js';
-import { authenticateToken } from '../auth/middleware.js';
+import { authenticateToken, requireRole } from '../auth/middleware.js';
 
 const router = express.Router();
 
@@ -34,8 +34,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create team
-router.post('/', async (req, res) => {
+// Create team - Only managers
+router.post('/', requireRole('manager'), async (req, res) => {
   try {
     const { name } = req.body;
 
